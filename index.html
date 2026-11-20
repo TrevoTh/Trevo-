@@ -634,7 +634,7 @@ $('#pSelEtq').onclick = () => {
 $('#pScan').onclick = async () => { const c = await scan(); if (c) { $('#pBusca').value = c; prodRender(); const f = S.produtos.find(p => p.codigo_barras === c); if (!f && perm('produtos_editar') && await confirma('Produto não encontrado', `Nenhum produto com o código <b>${esc(c)}</b>. Cadastrar agora?`, 'Cadastrar', '')) prodForm({ codigo_barras: c }); } };
 $('#pNovo').onclick = () => prodForm({});
 
-function prodForm(p) {
+function prodForm(p, aoSalvar) {
   const novo = !p.id;
   const d = dlg(novo ? 'Novo produto' : 'Editar produto', `
     <div class="field"><label>Descrição *</label><div class="row"><div class="f"><input type="text" id="fd" maxlength="200" value="${esc(p.descricao || '')}"></div><label class="icon" title="Ler a embalagem (foto)" style="display:flex;align-items:center;justify-content:center;margin:0">📸<input type="file" id="fdOcr" accept="image/*" capture="environment" hidden></label></div></div>
@@ -672,6 +672,7 @@ function prodForm(p) {
         if (novo) S.produtos.push(data); else S.produtos[S.produtos.findIndex(x => x.id === p.id)] = data;
         S.produtos.sort((a, b) => a.descricao.localeCompare(b.descricao, 'pt-BR'));
         prodRender(); toast('Produto salvo');
+        if (aoSalvar) aoSalvar(data);
       }},
     ]);
   const fc = d.querySelector('#fc'), fd = d.querySelector('#fd'), fi = d.querySelector('#fcInfo');
@@ -1807,10 +1808,19 @@ $('#eFromCad').onclick = async () => {
   const d = dlg('Adicionar do cadastro', `<div class="row"><div class="f" style="flex:3"><input type="search" id="kb" placeholder="Buscar produto"></div>${'BarcodeDetector' in window ? '<button type="button" class="icon" id="ks">📷</button>' : ''}</div><div class="list" id="kl" style="margin-top:10px"></div>`, [{ t: 'Pronto' }]);
   const kl = d.querySelector('#kl'), kb = d.querySelector('#kb');
   const render = () => { const list = filtraProdutos(kb.value).slice(0, 40);
-    kl.innerHTML = list.length ? list.map(p => `<div class="li" data-id="${p.id}"><div class="grow"><div class="ttl">${esc(p.descricao)}</div><div class="sub">${esc(p.codigo_barras || '')}</div></div><div class="price">${precoHTML(p)}</div><button class="icon kadd">＋</button></div>`).join('') : '<div class="empty">Nenhum produto.</div>'; };
+    const q = kb.value.trim(), ehCodigo = /^\d{8,14}$/.test(q);
+    kl.innerHTML = list.length ? list.map(p => `<div class="li" data-id="${p.id}"><div class="grow"><div class="ttl">${esc(p.descricao)}</div><div class="sub">${esc(p.codigo_barras || '')}</div></div><div class="price">${precoHTML(p)}</div><button class="icon kadd">＋</button></div>`).join('')
+      : `<div class="empty">Nenhum produto.${perm('produtos_editar') ? `<br><button type="button" class="btn sm" id="kNovo" style="margin-top:10px">+ Cadastrar ${ehCodigo ? 'o código ' + esc(q) : 'novo produto'}</button>` : ''}</div>`;
+    const kn = kl.querySelector('#kNovo'); if (kn) kn.onclick = () => cadastroRapido(ehCodigo ? q : '', ehCodigo ? '' : q); };
+  // cadastra e já adiciona na lista de etiquetas
+  const cadastroRapido = (codigo, desc) => prodForm({ codigo_barras: codigo, descricao: desc }, novo => {
+    etqAddProduto(novo); etqItems(); etqRender(); kb.value = ''; render(); toast('Cadastrado e adicionado: ' + novo.descricao);
+  });
   kb.oninput = render; render();
   kl.onclick = e => { const li = e.target.closest('.li'); if (!li) return; const p = S.produtos.find(x => x.id === li.dataset.id); etqAddProduto(p); etqItems(); etqRender(); toast('Adicionado: ' + p.descricao); };
-  const ks = d.querySelector('#ks'); if (ks) ks.onclick = async () => { const c = await scan(); if (!c) return; const p = S.produtos.find(x => x.codigo_barras === c); if (p) { etqAddProduto(p); etqItems(); etqRender(); toast('Adicionado: ' + p.descricao); } else { kb.value = c; render(); toast('Código não cadastrado.', true); } };
+  const ks = d.querySelector('#ks'); if (ks) ks.onclick = async () => { const c = await scan(); if (!c) return; const p = S.produtos.find(x => x.codigo_barras === c); if (p) { etqAddProduto(p); etqItems(); etqRender(); toast('Adicionado: ' + p.descricao); } else { kb.value = c; render();
+      if (perm('produtos_editar')) { if (await confirma('Produto não cadastrado', `O código <b>${esc(c)}</b> ainda não está cadastrado. Cadastrar agora? A descrição é buscada automaticamente.`, 'Cadastrar', '')) cadastroRapido(c, ''); }
+      else toast('Código não cadastrado. Peça ao gestor para cadastrar.', true); } };
 };
 [['ew', 'w', 1], ['eh', 'h', 1], ['egap', 'gap', 0]].forEach(([id, k, min]) => $('#' + id).addEventListener('input', e => { const v = parseFloat(String(e.target.value).replace(',', '.')); if (!isNaN(v) && v >= min) { E[k] = v; etqPresets(); etqRender(); } }));
 $('#eCut').onchange = e => { E.cut = e.target.checked; etqRender(); };
