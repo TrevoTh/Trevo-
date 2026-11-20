@@ -128,6 +128,22 @@ table.prev td,table.prev th{border-bottom:1px solid var(--line);padding:4px;text
   </div>
 </section>
 
+<!-- =============== PRIMEIRO ACESSO =============== -->
+<section id="vSetup" hidden style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(160deg,var(--green),#0f5e27)">
+  <div class="loginbox">
+    <div class="logo" id="setupLogo"></div>
+    <h1>Primeiro acesso</h1>
+    <p class="info" style="text-align:center;margin-top:-6px">Crie o acesso de administrador (Suporte). Esta tela só aparece uma vez.</p>
+    <form id="fSetup">
+      <div class="field"><label>Seu nome</label><input type="text" id="sNome" autocomplete="name" required></div>
+      <div class="field"><label>E-mail (para recuperar a senha)</label><input type="email" id="sEmail" autocomplete="email" required></div>
+      <div class="field"><label>Senha (mínimo 8 caracteres)</label><input type="password" id="sS1" autocomplete="new-password" required></div>
+      <div class="field"><label>Repita a senha</label><input type="password" id="sS2" autocomplete="new-password" required></div>
+      <button class="btn full" id="sBtn" type="submit">Criar administrador</button>
+    </form>
+  </div>
+</section>
+
 <!-- =============== APP =============== -->
 <section id="vMain" hidden>
   <header class="top">
@@ -234,6 +250,7 @@ table.prev td,table.prev th{border-bottom:1px solid var(--line);padding:4px;text
       </div>
       <div class="card">
         <h2>Trocar senha</h2>
+        <div class="field"><label>Senha atual</label><input type="password" id="cS0" autocomplete="current-password"></div>
         <div class="field"><label>Nova senha (mínimo 8 caracteres)</label><input type="password" id="cS1" autocomplete="new-password"></div>
         <div class="field"><label>Repita a nova senha</label><input type="password" id="cS2" autocomplete="new-password"></div>
         <button class="btn" id="cSalvar">Salvar nova senha</button>
@@ -307,16 +324,27 @@ const confirma = (title, msg, okTxt = 'Confirmar', cls = 'red') => new Promise(r
   d.addEventListener('close', () => res(ok));
 });
 
-async function callFn(name, body) {
-  const { data: { session } } = await sb.auth.getSession();
-  const headers = { 'Content-Type': 'application/json', apikey: SUPABASE_KEY };
-  if (session) headers.Authorization = 'Bearer ' + session.access_token;
-  let r;
-  try { r = await fetch(`${SUPABASE_URL}/functions/v1/${name}`, { method: 'POST', headers, body: JSON.stringify(body) }); }
-  catch (e) { throw new Error('Sem conexão com o servidor.'); }
-  let j = {}; try { j = await r.json(); } catch (e) {}
-  if (!r.ok) throw new Error(j.erro || ('Erro ' + r.status));
-  return j;
+async function rpc(fn, args) {
+  const { data, error } = await sb.rpc(fn, args || {});
+  if (error) {
+    if (/fetch|network/i.test(error.message || '')) throw new Error('Sem conexão com o servidor.');
+    if (/Could not find the function/i.test(error.message || '')) throw new Error('Banco desatualizado: rode o instalar.sql no Supabase.');
+    throw new Error(error.message);
+  }
+  return data;
+}
+// ações de administração (filiais e usuários) — executadas no banco com checagem de permissão
+function adm(b) {
+  const M = {
+    criar_filial: ['admin_criar_filial', { p_codigo: b.codigo, p_nome: b.nome }],
+    atualizar_filial: ['admin_atualizar_filial', { p_id: b.id, p_nome: b.nome, p_ativo: b.ativo }],
+    criar_usuario: ['admin_criar_usuario', { p_filial: b.filial_id, p_papel: b.papel, p_matricula: b.matricula, p_nome: b.nome, p_senha: b.senha, p_email: b.email || null, p_permissoes: b.permissoes || {} }],
+    atualizar_usuario: ['admin_atualizar_usuario', { p_id: b.id, p_nome: b.nome, p_permissoes: b.permissoes, p_ativo: b.ativo, p_email: b.email }],
+    redefinir_senha: ['admin_redefinir_senha', { p_id: b.id, p_senha: b.senha }],
+    excluir_usuario: ['admin_excluir_usuario', { p_id: b.id }],
+  }[b.acao];
+  const args = {}; Object.entries(M[1]).forEach(([k, v]) => { if (v !== undefined) args[k] = v; });
+  return rpc(M[0], args);
 }
 
 // ===================== ESTADO =====================
@@ -327,7 +355,7 @@ const perm = p => S.perfil && (S.perfil.papel !== 'colaborador' || !!(S.perfil.p
 
 // ===================== AUTH =====================
 function showLogin() {
-  $('#vMain').hidden = true; $('#vLogin').hidden = false;
+  $('#vMain').hidden = true; $('#vSetup').hidden = true; $('#vLogin').hidden = false;
   $('#lFilial').value = ls.get('ultFilial', '');
   $('#loginLogo').innerHTML = logoSVG(200);
 }
@@ -336,9 +364,9 @@ $('#fLogin').onsubmit = async e => {
   const btn = $('#lBtn'); btn.disabled = true; btn.textContent = 'Entrando...';
   try {
     const filial = $('#lFilial').value.trim().toUpperCase();
-    const r = await callFn('login', { filial, matricula: $('#lMat').value, senha: $('#lSenha').value });
-    const { error } = await sb.auth.setSession({ access_token: r.access_token, refresh_token: r.refresh_token });
-    if (error) throw error;
+    const email = await rpc('email_login', { p_filial: filial, p_matricula: $('#lMat').value });
+    const { error } = await sb.auth.signInWithPassword({ email, password: $('#lSenha').value });
+    if (error) throw new Error(error.status === 429 ? 'Muitas tentativas. Aguarde alguns minutos.' : 'Filial, matrícula ou senha inválidos.');
     ls.set('ultFilial', filial);
     $('#lSenha').value = '';
     await enter();
@@ -398,7 +426,7 @@ const TABS = [
   { id: 'conta', t: '👤 Minha conta', ok: () => true },
 ];
 function showMain() {
-  $('#vLogin').hidden = true; $('#vMain').hidden = false;
+  $('#vLogin').hidden = true; $('#vSetup').hidden = true; $('#vMain').hidden = false;
   const p = S.perfil;
   $('#hFilial').textContent = S.filial ? `${S.filial.codigo} · ${S.filial.nome}` : 'Suporte';
   $('#hUser').textContent = `${p.nome} · ${({suporte: 'Suporte', gestor: 'Gestor', colaborador: 'Colaborador'})[p.papel]}`;
@@ -688,14 +716,14 @@ $('#qList').onclick = e => {
     try {
       if (a === 'perm') return usuarioForm(u.papel, u);
       if (a === 'senha') return dlg('Nova senha para ' + u.nome, `<div class="field"><label>Nova senha (mínimo 8)</label><input type="text" id="ns" autocomplete="off"></div><div class="info">Passe a nova senha para a pessoa. Ela pode trocar depois em "Minha conta".</div>`,
-        [{ t: 'Cancelar' }, { t: 'Salvar', cls: '', fn: async d2 => { await callFn('admin', { acao: 'redefinir_senha', id: u.id, senha: d2.querySelector('#ns').value }); toast('Senha redefinida'); } }]);
+        [{ t: 'Cancelar' }, { t: 'Salvar', cls: '', fn: async d2 => { await adm({ acao: 'redefinir_senha', id: u.id, senha: d2.querySelector('#ns').value }); toast('Senha redefinida'); } }]);
       if (a === 'ativo') {
         if (u.ativo && !await confirma('Bloquear acesso', `${esc(u.nome)} não vai mais conseguir entrar até ser desbloqueado.`, 'Bloquear')) return;
-        await callFn('admin', { acao: 'atualizar_usuario', id: u.id, ativo: !u.ativo }); toast(u.ativo ? 'Acesso bloqueado' : 'Acesso liberado'); equipeOpen();
+        await adm({ acao: 'atualizar_usuario', id: u.id, ativo: !u.ativo }); toast(u.ativo ? 'Acesso bloqueado' : 'Acesso liberado'); equipeOpen();
       }
       if (a === 'del') {
         if (!await confirma('Excluir', `Apagar o acesso e todos os dados de <b>${esc(u.nome)}</b> (matrícula ${esc(u.matricula)})? Isso não pode ser desfeito.`, 'Excluir')) return;
-        await callFn('admin', { acao: 'excluir_usuario', id: u.id }); toast('Excluído'); equipeOpen();
+        await adm({ acao: 'excluir_usuario', id: u.id }); toast('Excluído'); equipeOpen();
       }
     } catch (err) { toast(err.message, true); }
   });
@@ -716,13 +744,13 @@ function usuarioForm(papel, u) {
       const permissoes = {}; d.querySelectorAll('[data-perm]').forEach(c => { if (c.checked) permissoes[c.dataset.perm] = true; });
       const nome = d.querySelector('#un').value;
       if (novo) {
-        await callFn('admin', { acao: 'criar_usuario', papel, filial_id: S.filial.id, nome, matricula: d.querySelector('#um').value, senha: d.querySelector('#us').value, email: d.querySelector('#ue')?.value, permissoes });
+        await adm({ acao: 'criar_usuario', papel, filial_id: S.filial.id, nome, matricula: d.querySelector('#um').value, senha: d.querySelector('#us').value, email: d.querySelector('#ue')?.value, permissoes });
         toast(papel === 'gestor' ? 'Gestor criado' : 'Colaborador convidado');
       } else {
         const body = { acao: 'atualizar_usuario', id: u.id, nome };
         if (papel === 'colaborador') body.permissoes = permissoes;
         if (papel === 'gestor' && isSup()) body.email = d.querySelector('#ue').value;
-        await callFn('admin', body); toast('Salvo');
+        await adm(body); toast('Salvo');
       }
       equipeOpen();
     }}]);
@@ -754,8 +782,8 @@ function filialForm(f) {
     <div class="field"><label>Nome *</label><input type="text" id="fno" maxlength="120" value="${esc(f?.nome || '')}"></div>
     ${f ? `<label class="chk"><input type="checkbox" id="fat" ${f.ativo ? 'checked' : ''}> Filial ativa (desativada = ninguém da filial consegue entrar)</label>` : ''}`,
     [{ t: 'Cancelar' }, { t: 'Salvar', cls: '', fn: async d => {
-      if (f) await callFn('admin', { acao: 'atualizar_filial', id: f.id, nome: d.querySelector('#fno').value, ativo: d.querySelector('#fat').checked });
-      else await callFn('admin', { acao: 'criar_filial', codigo: d.querySelector('#fco').value, nome: d.querySelector('#fno').value });
+      if (f) await adm({ acao: 'atualizar_filial', id: f.id, nome: d.querySelector('#fno').value, ativo: d.querySelector('#fat').checked });
+      else await adm({ acao: 'criar_filial', codigo: d.querySelector('#fco').value, nome: d.querySelector('#fno').value });
       toast('Filial salva');
       await loadFiliais();
       if (!S.filial && S.filiais.length) S.filial = S.filiais[0];
@@ -777,9 +805,9 @@ $('#cSalvar').onclick = async () => {
   const a = $('#cS1').value, b = $('#cS2').value;
   if (a.length < 8) return toast('A senha precisa ter pelo menos 8 caracteres.', true);
   if (a !== b) return toast('As senhas não conferem.', true);
-  const { error } = await sb.auth.updateUser({ password: a });
-  if (error) return toast(error.message, true);
-  $('#cS1').value = $('#cS2').value = ''; toast('Senha alterada!');
+  try { await rpc('alterar_minha_senha', { p_atual: $('#cS0').value, p_nova: a }); }
+  catch (err) { return toast(err.message, true); }
+  $('#cS0').value = $('#cS1').value = $('#cS2').value = ''; toast('Senha alterada!');
 };
 $('#cSair').onclick = sair;
 
@@ -999,13 +1027,37 @@ $('#ePrint').onclick = () => {
   window.print();
 };
 
+// ===================== PRIMEIRO ACESSO =====================
+function showSetup() {
+  $('#vMain').hidden = true; $('#vLogin').hidden = true; $('#vSetup').hidden = false;
+  $('#setupLogo').innerHTML = logoSVG(200);
+}
+$('#fSetup').onsubmit = async e => {
+  e.preventDefault();
+  const btn = $('#sBtn'); btn.disabled = true;
+  try {
+    const nome = $('#sNome').value.trim(), email = $('#sEmail').value.trim(), a = $('#sS1').value, b = $('#sS2').value;
+    if (a.length < 8) throw new Error('A senha precisa ter pelo menos 8 caracteres.');
+    if (a !== b) throw new Error('As senhas não conferem.');
+    await rpc('primeiro_acesso', { p_nome: nome, p_email: email, p_senha: a });
+    const { error } = await sb.auth.signInWithPassword({ email, password: a });
+    if (error) throw new Error('Administrador criado. Entre com: filial em branco, matrícula SUPORTE e sua senha.');
+    ls.set('ultFilial', '');
+    toast('Administrador criado! Seu login: filial em branco + matrícula SUPORTE.');
+    await enter();
+  } catch (err) { toast(err.message, true); }
+  btn.disabled = false;
+};
+
 // ===================== INÍCIO =====================
 sb.auth.onAuthStateChange(ev => {
   if (ev === 'PASSWORD_RECOVERY') setTimeout(telaNovaSenha, 300);
 });
 (async () => {
   const { data: { session } } = await sb.auth.getSession();
-  if (session && !location.hash.includes('type=recovery')) await enter(); else showLogin();
+  if (session && !location.hash.includes('type=recovery')) return enter();
+  try { if (!(await rpc('sistema_tem_admin'))) return showSetup(); } catch (e) { toast(e.message, true); }
+  showLogin();
 })();
 </script>
 </body>
