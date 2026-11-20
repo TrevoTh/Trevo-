@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#e30613">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Trevo">
 <title>Trevo Gestão</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -78,8 +84,9 @@ main{max-width:1100px;margin:0 auto;padding:12px}
 .preview-one svg{max-width:100%;height:auto;filter:drop-shadow(0 2px 6px rgba(0,0,0,.2))}
 #pages{display:flex;flex-direction:column;align-items:center;gap:14px}
 .pagewrap{overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.18);background:#fff}
-.page{width:210mm;height:297mm;background:#fff;position:relative;transform-origin:0 0;overflow:hidden}
-.page.land{width:297mm;height:210mm}
+.page{background:#fff;position:relative;transform-origin:0 0;overflow:hidden}
+.pin{position:absolute;left:0;top:0;width:100%;height:100%;transform-origin:0 0}
+details.calib summary{cursor:pointer;font-weight:700;font-size:14px;margin-top:10px}
 .tag{position:absolute;display:block}
 .cut{position:absolute;border:0.15mm dashed #bbb;pointer-events:none}
 .logo-prev{max-height:50px;margin-top:6px}
@@ -125,6 +132,7 @@ table.prev td,table.prev th{border-bottom:1px solid var(--line);padding:4px;text
     </form>
     <button class="link" id="lEsqueci" type="button">Esqueci minha senha (gestor)</button>
     <div class="info" style="text-align:center">Colaborador: peça ao seu gestor para redefinir a senha.</div>
+    <button class="link instalarApp" type="button" hidden>📲 Instalar o aplicativo</button>
   </div>
 </section>
 
@@ -175,6 +183,43 @@ table.prev td,table.prev th{border-bottom:1px solid var(--line);padding:4px;text
               <button class="btn sm ghost" id="eLogoClear" hidden>Remover logo</button>
             </div>
             <img id="eLogoPrev" class="logo-prev" alt="" hidden>
+          </div>
+          <div class="card">
+            <h2>Impressora e papel</h2>
+            <div class="field"><label>Tipo de papel</label>
+              <select id="iPapel">
+                <option value="a4">Folha A4 (jato de tinta / laser)</option>
+                <option value="carta">Folha Carta</option>
+                <option value="adesiva">Folha de etiquetas adesivas</option>
+                <option value="rolo">Rolo / impressora térmica (1 por página)</option>
+              </select></div>
+            <div class="row" id="iBoxFolha"><div class="f"><label>Margem do papel (mm)</label><input type="number" id="iMargem" step="0.5" min="0" inputmode="decimal"></div></div>
+            <div id="iBoxAds" hidden>
+              <div class="row">
+                <div class="f"><label>Folha</label><select id="iAdsPapel"><option value="a4">A4</option><option value="carta">Carta</option></select></div>
+                <div class="f"><label>Colunas</label><input type="number" id="iCols" min="1" inputmode="numeric"></div>
+                <div class="f"><label>Linhas</label><input type="number" id="iRows" min="1" inputmode="numeric"></div>
+              </div>
+              <div class="row" style="margin-top:8px">
+                <div class="f"><label>Margem sup. (mm)</label><input type="number" id="iMTop" step="0.5" min="0" inputmode="decimal"></div>
+                <div class="f"><label>Margem esq. (mm)</label><input type="number" id="iMLeft" step="0.5" min="0" inputmode="decimal"></div>
+              </div>
+              <div class="row" style="margin-top:8px">
+                <div class="f"><label>Espaço entre colunas (mm)</label><input type="number" id="iGapH" step="0.5" min="0" inputmode="decimal"></div>
+                <div class="f"><label>Espaço entre linhas (mm)</label><input type="number" id="iGapV" step="0.5" min="0" inputmode="decimal"></div>
+              </div>
+              <div class="info">Use as medidas que vêm na embalagem da folha de etiquetas. O tamanho de cada etiqueta é o de "Tamanho da etiqueta" acima.</div>
+            </div>
+            <div class="info" id="iRoloInfo" hidden>Na hora de imprimir, escolha a impressora térmica e o papel/etiqueta do mesmo tamanho (ex.: 50 × 40 mm).</div>
+            <details class="calib"><summary>Ajuste fino da impressora (calibração)</summary>
+              <div class="row" style="margin-top:8px">
+                <div class="f"><label>Mover → (mm)</label><input type="number" id="iOffX" step="0.5" inputmode="decimal"></div>
+                <div class="f"><label>Mover ↓ (mm)</label><input type="number" id="iOffY" step="0.5" inputmode="decimal"></div>
+                <div class="f"><label>Escala (%)</label><input type="number" id="iEsc" step="0.5" min="80" max="120" inputmode="decimal"></div>
+              </div>
+              <div class="info">Imprima a página de teste e meça a régua: se 100 mm sair com 98 mm, use escala 102%. Fica salvo só neste aparelho.</div>
+              <button class="btn sm ghost" id="iTeste" style="margin-top:8px">📏 Imprimir página de teste</button>
+            </details>
           </div>
           <button class="btn red full" id="ePrint">🖨️ Imprimir / Salvar PDF</button>
           <div class="info" style="text-align:center;margin-bottom:12px">No celular: Imprimir → "Salvar como PDF", escala 100%, sem margens.</div>
@@ -228,6 +273,23 @@ table.prev td,table.prev th{border-bottom:1px solid var(--line);padding:4px;text
       <div class="card"><div class="list" id="fList"></div></div>
     </div>
 
+    <!-- CONFIGURAÇÕES (suporte) -->
+    <div id="tab-config" class="tab" hidden>
+      <div class="card">
+        <h2>Leitor com IA (Google Gemini)</h2>
+        <div id="cfgStatus" class="info" style="margin-top:0"></div>
+        <div class="field" style="margin-top:10px"><label>Nova chave da IA</label><input type="password" id="cfgChave" autocomplete="off" placeholder="Cole aqui a chave (deixe vazio para manter a atual)"></div>
+        <div class="field"><label>Modelo</label><input type="text" id="cfgModelo" autocomplete="off" placeholder="gemini-flash-latest"></div>
+        <div class="row">
+          <button class="btn sm" id="cfgSalvar">Salvar</button>
+          <button class="btn sm ghost" id="cfgTestar">🧪 Testar chave</button>
+          <button class="btn sm ghost" id="cfgRemover" style="color:var(--red)">Remover chave</button>
+        </div>
+        <div class="info" id="cfgTeste"></div>
+        <div class="info">Para criar uma chave grátis: Google AI Studio (aistudio.google.com) → "Get API key" → "Create API key". Se a chave parar de funcionar, cole uma nova aqui. Sem chave, o app usa só o OCR.</div>
+      </div>
+    </div>
+
     <!-- CONTA -->
     <div id="tab-conta" class="tab" hidden>
       <div class="card">
@@ -241,6 +303,7 @@ table.prev td,table.prev th{border-bottom:1px solid var(--line);padding:4px;text
         <div class="field"><label>Repita a nova senha</label><input type="password" id="cS2" autocomplete="new-password"></div>
         <button class="btn" id="cSalvar">Salvar nova senha</button>
       </div>
+      <button class="btn full instalarApp" type="button" hidden style="margin-bottom:10px">📲 Instalar o aplicativo</button>
       <button class="btn ghost full" id="cSair">Sair</button>
     </div>
   </main>
@@ -386,6 +449,7 @@ function telaNovaSenha() {
 async function sair() { await sb.auth.signOut(); S.perfil = null; showLogin(); }
 
 async function enter() {
+  IA = null;
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return showLogin();
   const { data: p, error } = await sb.from('perfis').select('*').eq('id', user.id).maybeSingle();
@@ -409,6 +473,7 @@ const TABS = [
   { id: 'produtos', t: '📦 Produtos', ok: () => S.filial && (perm('produtos_ver') || perm('produtos_editar')) },
   { id: 'equipe', t: '👥 Equipe', ok: () => S.filial && (isGestor() || isSup()) },
   { id: 'filiais', t: '🏬 Filiais', ok: () => isSup() },
+  { id: 'config', t: '⚙️ Configurações', ok: () => isSup() },
   { id: 'conta', t: '👤 Minha conta', ok: () => true },
 ];
 function showMain() {
@@ -438,7 +503,7 @@ function openTab(id) {
   S.tab = id; ls.set('tab', id);
   document.querySelectorAll('.tab').forEach(t => t.hidden = t.id !== 'tab-' + id);
   document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.id === id));
-  ({ etiquetas: etqOpen, produtos: prodOpen, equipe: equipeOpen, filiais: filiaisOpen, conta: contaOpen })[id]();
+  ({ etiquetas: etqOpen, produtos: prodOpen, equipe: equipeOpen, filiais: filiaisOpen, config: configOpen, conta: contaOpen })[id]();
   window.scrollTo(0, 0);
 }
 
@@ -507,7 +572,7 @@ $('#pNovo').onclick = () => prodForm({});
 function prodForm(p) {
   const novo = !p.id;
   const d = dlg(novo ? 'Novo produto' : 'Editar produto', `
-    <div class="field"><label>Descrição *</label><input type="text" id="fd" maxlength="200" value="${esc(p.descricao || '')}"></div>
+    <div class="field"><label>Descrição *</label><div class="row"><div class="f"><input type="text" id="fd" maxlength="200" value="${esc(p.descricao || '')}"></div><label class="icon" title="Ler a embalagem (foto)" style="display:flex;align-items:center;justify-content:center;margin:0">📸<input type="file" id="fdOcr" accept="image/*" capture="environment" hidden></label></div></div>
     <div class="field"><label>Código de barras</label><div class="row"><div class="f"><input type="text" id="fc" inputmode="numeric" maxlength="40" value="${esc(p.codigo_barras || '')}"></div><button type="button" class="icon" id="fcScan" title="Ler com a câmera">📷</button><button type="button" class="icon" id="fcBusca" title="Buscar descrição pelo código">🔎</button></div><div class="info" id="fcInfo" style="margin-top:4px"></div></div>
     <div class="row">
       <div class="f field"><label>Preço (R$) *</label><input type="text" id="fp" inputmode="decimal" value="${p.preco != null ? brl(p.preco) : ''}"></div>
@@ -557,10 +622,201 @@ function prodForm(p) {
     fd.value = desc; fi.textContent = '✅ Descrição encontrada em base pública. Confira antes de salvar.';
   };
   d.querySelector('#fcBusca').onclick = () => buscar(true);
+  d.querySelector('#fdOcr').onchange = async e => {
+    const file = e.target.files[0]; e.target.value = ''; if (!file) return;
+    const r = await leitorOCR(file); if (!r) return;
+    if (r.descricao) fd.value = r.descricao;
+    if (r.categoria && !d.querySelector('#fcat').value.trim()) d.querySelector('#fcat').value = r.categoria;
+    if (r.ean && !fc.value.trim()) { fc.value = r.ean; fi.textContent = '✅ Código de barras lido da foto.'; }
+  };
   fc.addEventListener('change', () => buscar(false));
   d.querySelector('#fcScan').onclick = async () => { const c = await scan(); if (c) { fc.value = c; buscar(false); } };
   if (novo && p.codigo_barras && !p.descricao) buscar(false);
   if (!('BarcodeDetector' in window)) d.querySelector('#fcScan').hidden = true;
+}
+
+// ---------- IA (Google Gemini) ----------
+const IA_MODELO_PADRAO = 'gemini-flash-latest';
+let IA = null;
+async function iaConfig(force) {
+  if (IA && !force) return IA;
+  try { IA = (await rpc('config_ia_obter')) || {}; } catch (e) { IA = {}; }
+  return IA;
+}
+function iaErro(status, m, modelo) {
+  if (status === 429) return 'Limite gratuito da IA atingido. Tente mais tarde (o OCR continua funcionando).';
+  if (/not found|is not supported|does not exist/i.test(m)) return `O modelo "${modelo}" não está disponível para esta chave.`;
+  if (/api key|credential|permission|unauth|invalid/i.test(m) || status === 401 || status === 403) return 'Chave da IA inválida ou sem permissão.';
+  return 'IA: ' + m;
+}
+// tenta a API do Gemini (AI Studio) e, se não der, a do Vertex AI — assim aceita os dois tipos de chave
+async function iaChamar(parts, cfg, json = true) {
+  const chave = cfg.ia_chave, modelo = cfg.ia_modelo || IA_MODELO_PADRAO;
+  if (!chave) throw new Error('Nenhuma chave de IA configurada.');
+  const body = { contents: [{ role: 'user', parts }], generationConfig: { temperature: 0.1, ...(json ? { responseMimeType: 'application/json' } : {}) } };
+  const ordem = cfg.ia_provedor === 'vertex' ? ['vertex', 'gemini'] : ['gemini', 'vertex'];
+  let primeiro = null;
+  for (const prov of ordem) {
+    const url = prov === 'gemini'
+      ? `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelo)}:generateContent`
+      : `https://aiplatform.googleapis.com/v1/publishers/google/models/${encodeURIComponent(modelo)}:generateContent?key=${encodeURIComponent(chave)}`;
+    const headers = { 'Content-Type': 'application/json' };
+    if (prov === 'gemini') headers['x-goog-api-key'] = chave;
+    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 45000);
+    try {
+      const r = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: ctl.signal });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok) {
+        const txt = (j.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('');
+        return { texto: txt, provedor: prov, modelo };
+      }
+      const e = new Error(iaErro(r.status, j.error?.message || ('Erro ' + r.status), modelo)); e.status = r.status;
+      primeiro = primeiro || e;
+      if (r.status === 429) break;
+    } catch (e) { primeiro = primeiro || new Error(e.name === 'AbortError' ? 'A IA demorou demais para responder.' : 'Sem conexão com a IA.'); }
+    finally { clearTimeout(t); }
+  }
+  throw primeiro;
+}
+async function iaListarModelos(chave) {
+  try {
+    const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { headers: { 'x-goog-api-key': chave } });
+    if (!r.ok) return [];
+    const j = await r.json();
+    return (j.models || []).filter(m => (m.supportedGenerationMethods || []).includes('generateContent')).map(m => m.name.replace(/^models\//, ''))
+      .filter(n => /flash/i.test(n) && !/image|tts|live|audio|embed|thinking/i.test(n));
+  } catch (e) { return []; }
+}
+function fotoBase64(file, max = 1280) {
+  return createImageBitmap(file).then(img => {
+    const sc = Math.min(1, max / Math.max(img.width, img.height));
+    const c = document.createElement('canvas'); c.width = Math.round(img.width * sc); c.height = Math.round(img.height * sc);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    return c.toDataURL('image/jpeg', 0.85).split(',')[1];
+  });
+}
+const IA_PROMPT = `Você recebe a foto de uma embalagem de produto vendido em farmácia no Brasil.
+Responda SOMENTE com um JSON no formato {"descricao": "", "ean": "", "categoria": ""}.
+- descricao: nome comercial ou princípio ativo + concentração + forma + quantidade, em MAIÚSCULAS, até 80 caracteres. Ex.: "DIPIRONA MONOIDRATADA 500MG 10 COMPRIMIDOS" ou "SABONETE LÍQUIDO JOHNSON'S BABY 200ML".
+- ean: o código de barras (8 ou 13 dígitos) se estiver visível na foto; senão "".
+- categoria: uma ou duas palavras (ex.: Analgésico, Antialérgico, Vitamina, Higiene, Cosmético, Infantil); senão "".
+Não invente nada: o que não conseguir ler, deixe vazio.`;
+async function iaLerEmbalagem(file) {
+  const cfg = await iaConfig();
+  const b64 = await fotoBase64(file);
+  const r = await iaChamar([{ text: IA_PROMPT }, { inline_data: { mime_type: 'image/jpeg', data: b64 } }], cfg);
+  let o = {};
+  try { o = JSON.parse(r.texto.replace(/^```(json)?|```$/g, '').trim()); } catch (e) { throw new Error('A IA respondeu num formato inesperado.'); }
+  const ean = String(o.ean || '').replace(/\D/g, '');
+  return { descricao: String(o.descricao || '').replace(/\s+/g, ' ').trim().slice(0, 200), ean: eanBits(ean) ? ean : '', categoria: String(o.categoria || '').trim().slice(0, 60) };
+}
+
+// ---------- leitor OCR (lê a embalagem no próprio aparelho) ----------
+function loadScript(src) { return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('Não foi possível carregar o leitor. Verifique a internet.')); document.head.appendChild(s); }); }
+let ocrWorker = null, ocrProg = null;
+async function ocrPrepara(file) {
+  const img = await createImageBitmap(file);
+  const sc = Math.min(1, 1800 / Math.max(img.width, img.height));
+  const c = document.createElement('canvas'); c.width = Math.round(img.width * sc); c.height = Math.round(img.height * sc);
+  const x = c.getContext('2d'); x.drawImage(img, 0, 0, c.width, c.height);
+  const d = x.getImageData(0, 0, c.width, c.height), a = d.data;
+  for (let i = 0; i < a.length; i += 4) { let g = 0.299 * a[i] + 0.587 * a[i + 1] + 0.114 * a[i + 2]; g = Math.max(0, Math.min(255, (g - 128) * 1.35 + 128)); a[i] = a[i + 1] = a[i + 2] = g; }
+  x.putImageData(d, 0, 0);
+  return { canvas: c, url: c.toDataURL('image/jpeg', 0.6) };
+}
+const OCR_LIXO = /\b(lote|lot|val\.?|validade|fab\.?|fabrica[cç]|cnpj|reg\.?|registro|m\.?s\.?\s*\d|farm\.?|respons|crf|sac\b|www|http|\.com|venda sob|prescri|aten[cç][aã]o|siga corretamente|ind[uú]stria brasileira|composi[cç]|cada (comprimido|c[aá]psula|ml|g)|excipiente|conserv|temperatura|mantenha|crian[cç]as|leia a bula|bula|n[aã]o use|informa[cç]|tarja|gen[eé]rico lei|lei n|indica[cç]|posologia|data de|cep\b|rua\b|av\.)/i;
+const OCR_DOSE = /\d+([.,]\d+)?\s?(mg|mcg|µg|g|ml|ui|%)(\s?\/\s?(ml|g|dose))?\b/i;
+const OCR_QTD = /\b\d+\s?(comprimidos?|compr\.?|c[aá]psulas?|caps?\.?|dr[aá]geas?|unidades?|un\.?|envelopes?|sach[eê]s?|ampolas?|frascos?|cp\.?|cps\.?|tabletes?|pastilhas?|ml|g)\b/i;
+function ocrLimpa(t) { return String(t || '').replace(/[|_~^`´¨"“”'‘’<>{}\[\]\\]/g, ' ').replace(/\s+/g, ' ').trim(); }
+function ocrEAN(texto) {
+  const nums = String(texto).replace(/[^\d\n ]/g, ' ').replace(/(\d)\s(?=\d)/g, '$1').match(/\d{8,14}/g) || [];
+  for (const n of nums) { if ((n.length === 13 || n.length === 8) && eanBits(n)) return n; }
+  return '';
+}
+async function leitorOCR(file) {
+  const cfg = await iaConfig();
+  if (cfg && cfg.ia_chave) {
+    let cancelIA = false;
+    const d0 = dlg('Lendo com IA', `<div class="info" style="margin-top:0">🤖 Lendo a embalagem com IA...</div>`, [{ t: 'Cancelar', fn: () => { cancelIA = true; } }]);
+    try {
+      const r = await iaLerEmbalagem(file);
+      if (cancelIA) return null;
+      d0.close();
+      const url = URL.createObjectURL(file);
+      return await new Promise(res => {
+        let acao = null;
+        const dd = dlg('Confira a leitura da IA', `
+          <img src="${url}" style="width:100%;max-height:160px;object-fit:contain;border-radius:8px">
+          <div class="field" style="margin-top:8px"><label>Descrição</label><input type="text" id="iaDesc" maxlength="200" value="${esc(r.descricao)}"></div>
+          <div class="row"><div class="f field"><label>Código de barras</label><input type="text" id="iaEan" inputmode="numeric" value="${esc(r.ean)}"></div>
+          <div class="f field"><label>Categoria</label><input type="text" id="iaCat" value="${esc(r.categoria)}"></div></div>
+          <div class="info" style="margin-top:0">A IA pode errar: confira antes de usar.</div>`,
+          [{ t: 'Ler com OCR', fn: () => { acao = 'ocr'; } }, { t: 'Cancelar' }, { t: 'Usar', cls: '', fn: () => { acao = 'ok'; } }]);
+        dd.addEventListener('close', async () => {
+          URL.revokeObjectURL(url);
+          if (acao === 'ok') res({ descricao: dd.querySelector('#iaDesc').value.trim(), ean: dd.querySelector('#iaEan').value.replace(/\D/g, ''), categoria: dd.querySelector('#iaCat').value.trim() });
+          else if (acao === 'ocr') res(await leitorSoOCR(file));
+          else res(null);
+        });
+      });
+    } catch (err) {
+      if (d0.open) d0.close();
+      if (cancelIA) return null;
+      toast(err.message + ' Usando o OCR.', true);
+    }
+  }
+  return leitorSoOCR(file);
+}
+async function leitorSoOCR(file) {
+  let d, cancel = false;
+  d = dlg('Ler embalagem', `<div id="ocrSt" class="info" style="margin-top:0">Preparando a foto...</div>`, [{ t: 'Cancelar', fn: () => { cancel = true; } }]);
+  const st = d.querySelector('#ocrSt');
+  try {
+    const { canvas, url } = await ocrPrepara(file);
+    st.innerHTML = `<img src="${url}" style="width:100%;max-height:180px;object-fit:contain;border-radius:8px;margin-bottom:8px"><div id="ocrMsg">Carregando o leitor (na primeira vez demora um pouco)...</div>`;
+    const msg = d.querySelector('#ocrMsg');
+    ocrProg = m => { if (m.status === 'recognizing text') msg.textContent = `Lendo a embalagem... ${Math.round((m.progress || 0) * 100)}%`; else if (m.status) msg.textContent = 'Carregando o leitor... ' + (m.progress ? Math.round(m.progress * 100) + '%' : ''); };
+    if (!window.Tesseract) await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js');
+    if (!ocrWorker) ocrWorker = await Tesseract.createWorker('por', 1, { logger: m => ocrProg && ocrProg(m) });
+    const { data } = await ocrWorker.recognize(canvas);
+    if (cancel) return null;
+    d.close();
+    return await ocrMontar(data, url);
+  } catch (err) { if (d.open) d.close(); toast(err.message || 'Falha na leitura.', true); return null; }
+}
+function ocrMontar(data, url) {
+  return new Promise(res => {
+    const linhas = (data.lines || []).map(l => ({ t: ocrLimpa(l.text), c: l.confidence || 0, h: l.bbox ? l.bbox.y1 - l.bbox.y0 : 0 }))
+      .filter(l => l.t.length >= 2);
+    linhas.forEach(l => {
+      const letras = (l.t.match(/[a-zà-ú]/gi) || []).length;
+      l.dose = OCR_DOSE.test(l.t); l.qtd = OCR_QTD.test(l.t);
+      l.lixo = !l.dose && !l.qtd && (OCR_LIXO.test(l.t) || l.c < 45 || letras < 3 || l.t.length > 70);
+    });
+    const boas = linhas.filter(l => !l.lixo);
+    // sugestão: a maior escrita (nome) + primeira dose + primeira quantidade
+    const nome = boas.filter(l => !l.dose && !l.qtd).sort((a, b) => b.h - a.h)[0];
+    const dose = boas.find(l => l.dose), qtd = boas.find(l => l.qtd && l !== dose);
+    const sug = [nome, dose, qtd].filter(Boolean).map(l => l.t.toUpperCase());
+    const ean = ocrEAN(data.text || '');
+    let ok = false;
+    const chip = (l, i) => `<button type="button" class="chip ocrl" data-i="${i}" style="${l.dose || l.qtd ? 'border-color:var(--green);color:var(--green)' : ''}${l.lixo ? ';opacity:.6' : ''}">${esc(l.t)}</button>`;
+    const dd = dlg('Monte a descrição', `
+      <img src="${url}" style="width:100%;max-height:140px;object-fit:contain;border-radius:8px">
+      <div class="field" style="margin-top:8px"><label>Descrição</label><input type="text" id="ocrDesc" maxlength="200" value="${esc(sug.join(' '))}"></div>
+      <div class="row" style="margin-bottom:8px"><button type="button" class="btn sm ghost" id="ocrLimpar">Limpar</button><button type="button" class="btn sm ghost" id="ocrMai">AA maiúsculas</button></div>
+      ${ean ? `<div class="info" style="margin:0 0 8px">Código de barras lido: <b>${ean}</b></div>` : ''}
+      <label>Toque nas linhas para adicionar, na ordem:</label>
+      <div class="chips" id="ocrBoas">${linhas.map((l, i) => l.lixo ? '' : chip(l, i)).join('') || '<span class="info">Nenhuma linha útil. Tente outra foto, mais perto e com boa luz.</span>'}</div>
+      ${linhas.some(l => l.lixo) ? `<details style="margin-top:10px"><summary class="info" style="cursor:pointer">Ver linhas ignoradas (${linhas.filter(l => l.lixo).length})</summary><div class="chips" style="margin-top:6px">${linhas.map((l, i) => l.lixo ? chip(l, i) : '').join('')}</div></details>` : ''}
+      <div class="info">Em verde: dosagem e quantidade. Confira a descrição antes de usar.</div>`,
+      [{ t: 'Cancelar' }, { t: 'Usar descrição', cls: '', fn: () => { ok = true; } }]);
+    const inp = dd.querySelector('#ocrDesc');
+    dd.querySelectorAll('.ocrl').forEach(b => b.onclick = () => { const l = linhas[+b.dataset.i]; inp.value = (inp.value.trim() + ' ' + l.t.toUpperCase()).trim().slice(0, 200); b.classList.add('on'); });
+    dd.querySelector('#ocrLimpar').onclick = () => { inp.value = ''; dd.querySelectorAll('.ocrl.on').forEach(b => b.classList.remove('on')); };
+    dd.querySelector('#ocrMai').onclick = () => { inp.value = inp.value.toUpperCase(); };
+    dd.addEventListener('close', () => res(ok ? { descricao: inp.value.replace(/\s+/g, ' ').trim(), ean } : (ean ? { ean } : null)));
+  });
 }
 
 // ---------- busca de descrição por EAN em bases públicas ----------
@@ -817,6 +1073,52 @@ function filialForm(f) {
     }}]);
 }
 
+// ===================== CONFIGURAÇÕES (suporte) =====================
+async function configOpen() {
+  const c = await iaConfig(true);
+  const k = c.ia_chave || '';
+  $('#cfgStatus').innerHTML = k ? `Chave atual: <b>${esc(k.slice(0, 6))}••••${esc(k.slice(-4))}</b>${c.ia_provedor ? ' · via ' + (c.ia_provedor === 'vertex' ? 'Vertex AI' : 'Gemini API') : ''}` : 'Nenhuma chave configurada: o leitor usa só o OCR.';
+  $('#cfgModelo').value = c.ia_modelo || IA_MODELO_PADRAO;
+  $('#cfgChave').value = ''; $('#cfgTeste').textContent = '';
+}
+async function cfgTestar(chave, modelo) {
+  const out = $('#cfgTeste'); out.textContent = '🧪 Testando...';
+  try {
+    const r = await iaChamar([{ text: 'Responda somente com o JSON {"ok": true}' }], { ia_chave: chave, ia_modelo: modelo }, true);
+    out.textContent = `✅ Funcionando (${r.provedor === 'vertex' ? 'Vertex AI' : 'Gemini API'}, modelo ${r.modelo}).`;
+    return r;
+  } catch (e) {
+    out.textContent = '❌ ' + e.message;
+    if (/modelo/i.test(e.message)) {
+      const ms = await iaListarModelos(chave);
+      const sug = ms.find(m => /latest/.test(m)) || ms.find(m => !/preview|exp/.test(m)) || ms[0];
+      if (sug) { out.textContent += ` Modelo disponível para esta chave: ${sug}.`; $('#cfgModelo').value = sug; out.textContent += ' (já preenchi; teste de novo)'; }
+    }
+    return null;
+  }
+}
+$('#cfgTestar').onclick = async () => {
+  const atual = await iaConfig(true);
+  const chave = $('#cfgChave').value.trim() || atual.ia_chave;
+  if (!chave) return toast('Cole uma chave para testar.', true);
+  await cfgTestar(chave, $('#cfgModelo').value.trim() || IA_MODELO_PADRAO);
+};
+$('#cfgSalvar').onclick = async () => {
+  const chave = $('#cfgChave').value.trim(), modelo = $('#cfgModelo').value.trim() || IA_MODELO_PADRAO;
+  const atual = await iaConfig(true);
+  const usar = chave || atual.ia_chave;
+  let prov = null;
+  if (usar) { const r = await cfgTestar(usar, modelo); if (r) prov = r.provedor; else if (!await confirma('Salvar mesmo assim?', 'O teste da chave falhou. Salvar mesmo assim?', 'Salvar', '')) return; }
+  try {
+    await rpc('config_ia_salvar', { p_chave: chave || null, p_modelo: modelo, p_provedor: prov || '' });
+    toast('Configuração salva'); await configOpen();
+  } catch (e) { toast(e.message, true); }
+};
+$('#cfgRemover').onclick = async () => {
+  if (!await confirma('Remover chave', 'Sem a chave, o leitor passa a usar só o OCR.', 'Remover')) return;
+  try { await rpc('config_ia_salvar', { p_chave: '' }); toast('Chave removida'); await configOpen(); } catch (e) { toast(e.message, true); }
+};
+
 // ===================== CONTA =====================
 function contaOpen() {
   const p = S.perfil;
@@ -907,25 +1209,26 @@ function tagSVG(item, wmm, hmm, uid) {
   s += `<path d="M${W * 0.48},${sy2 + m * 0.01} Q${W * 0.70},${sy2 - m * 0.03} ${W * 0.87},${sy2 - m * 0.10} Q${W * 0.70},${sy2 - m * 0.06} ${W * 0.48},${sy2 + m * 0.01} Z" fill="${C.red}" stroke="${C.red}" stroke-width="${m * 0.025}" stroke-linejoin="round"/>`;
   let z1 = ly + LH + m * 0.03; let z2 = H * 0.835;
   const x0 = b + m * 0.05, x1 = W - b - m * 0.05, availW = x1 - x0;
+  // EAN em tamanho físico real (1 unidade = 0,1 mm), discreto no canto inferior esquerdo, sem fundo
   const eanTxt = String(item.ean || '').replace(/\D/g, '');
   let eanSVG = '', eanTop = null;
   if (E.eanMode && E.eanMode !== 'off' && eanTxt) {
-    const zt = z2 - z1, bits = E.eanMode === 'barras' ? eanBits(eanTxt) : null;
-    const stripH = bits ? zt * 0.32 : zt * 0.13;
-    const top = H * 0.86 - stripH, digS = bits ? stripH * 0.26 : stripH * 0.9;
+    const bits = E.eanMode === 'barras' ? eanBits(eanTxt) : null;
+    const base = H * 0.785;                      // logo acima da faixa amarela, no lado esquerdo
     if (bits) {
-      const mod = Math.min(availW / (bits.length + 18), W * 0.0072), bw = mod * bits.length, bx = W / 2 - bw / 2, barH = stripH - digS * 1.2;
-      eanSVG += `<rect x="${bx - mod * 11}" y="${top - mod * 2}" width="${bw + mod * 18}" height="${stripH + mod * 3}" rx="${mod * 2}" fill="#fff"/>`;
+      const mod = 2.64;                            // 0,264 mm por módulo (80% do tamanho padrão do EAN)
+      const bw = mod * bits.length, digS = 20, barH = 60;   // barras 6 mm + números 2 mm
+      const bx = Math.max(x0, b + mod * 11);       // respeita a margem de leitura do lado esquerdo
+      const top = base - barH - digS * 1.05;
       let i = 0;
-      while (i < bits.length) { if (bits[i] === '1') { let j = i; while (bits[j] === '1') j++; eanSVG += `<rect x="${(bx + i * mod).toFixed(2)}" y="${top.toFixed(2)}" width="${((j - i) * mod).toFixed(2)}" height="${barH.toFixed(2)}" fill="#000"/>`; i = j; } else i++; }
-      eanSVG += `<text x="${W / 2}" y="${top + stripH - digS * 0.05}" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="${digS}" letter-spacing="${digS * 0.1}" fill="#000">${eanTxt}</text>`;
+      while (i < bits.length) { if (bits[i] === '1') { let j = i; while (bits[j] === '1') j++; eanSVG += `<rect x="${(bx + i * mod).toFixed(2)}" y="${top.toFixed(2)}" width="${((j - i) * mod).toFixed(2)}" height="${barH}" fill="#000"/>`; i = j; } else i++; }
+      eanSVG += `<text x="${bx + bw / 2}" y="${base - digS * 0.1}" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="${digS}" letter-spacing="${digS * 0.15}" fill="#000">${eanTxt}</text>`;
+      eanTop = { top: top - 6, right: bx + bw + mod * 7 };
     } else {
-      const ds = Math.min(digS, availW * 0.8 / (tw(eanTxt, 700, false) * 1.1)), tW = tw(eanTxt, 700, false) * ds * 1.1;
-      eanSVG += `<rect x="${W / 2 - tW / 2 - ds * 0.4}" y="${top - ds * 0.1}" width="${tW + ds * 0.8}" height="${ds * 1.15}" rx="${ds * 0.2}" fill="#fff"/>`;
-      eanSVG += `<text x="${W / 2}" y="${top + ds * 0.85}" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="${ds}" letter-spacing="${ds * 0.08}" fill="#222">${eanTxt}</text>`;
+      const ds = 22, tW = tw(eanTxt, 400, false) * ds * 1.15;
+      eanSVG += `<text x="${x0}" y="${base - ds * 0.2}" font-family="Arial,Helvetica,sans-serif" font-size="${ds}" letter-spacing="${ds * 0.12}" fill="#333">${eanTxt}</text>`;
+      eanTop = { top: base - ds * 1.25, right: x0 + tW };
     }
-    eanTop = top - zt * 0.02;
-    z2 = Math.min(z2, eanTop);
   }
   const showName = (item.promo || E.showDesc) && item.name;
   const showOld = item.promo && item.old;
@@ -949,9 +1252,16 @@ function tagSVG(item, wmm, hmm, uid) {
   const kRs = tw('R$', 900, false) * 0.46, kP = tw(price, 900, false), kG = 0.05;
   const ps = Math.min(zh * 0.97 / 0.73, availW / (kRs + kG + kP));
   const totalW = (kRs + kG + kP) * ps, gx = x0 + (availW - totalW) / 2;
-  let ps2 = ps;
-  if (eanTop != null) ps2 = Math.min(ps, zh * 0.97 / (0.73 + 0.2));  // espaço para a vírgula
-  const base0 = eanTop != null ? z1 + ps2 * 0.73 + (zh - ps2 * 0.93) / 2 : z2 - zh * 0.02 - (zh - ps * 0.73) / 2;
+  let ps2 = ps, base0 = z2 - zh * 0.02 - (zh - ps * 0.73) / 2;
+  if (eanTop) {
+    const fundoPreco = base0 + ps * 0.2;        // inclui a vírgula
+    const larguraPreco = (kRs + kG + kP) * ps, inicioPreco = x0 + (availW - larguraPreco) / 2;
+    if (fundoPreco > eanTop.top && inicioPreco < eanTop.right) {
+      const zh2 = eanTop.top - z1;               // encolhe o preço para caber acima do código
+      ps2 = Math.min(ps, zh2 * 0.97 / 0.93, availW / (kRs + kG + kP));
+      base0 = z1 + ps2 * 0.73 + Math.max(0, (zh2 - ps2 * 0.93) / 2);
+    }
+  }
   const base = base0, rsS = ps2 * 0.46, rsBase = base - (ps2 * 0.73 - rsS * 0.73) / 2;
   s += `<text x="${x0 + (availW - (kRs + kG + kP) * ps2) / 2}" y="${rsBase}" font-family='${F}' font-weight="900" font-size="${rsS}" fill="${C.green}" stroke="#fff" stroke-width="${rsS * 0.16}" paint-order="stroke" stroke-linejoin="round">R$</text>`;
   const gx2 = x0 + (availW - (kRs + kG + kP) * ps2) / 2; const px = gx2 + (kRs + kG) * ps2;
@@ -989,11 +1299,46 @@ function eanBits(code) {
   return null;
 }
 
+// ---------- configuração da impressora (por aparelho) ----------
+const IMP_DEF = { papel: 'a4', margem: 5, adsPapel: 'a4', cols: 4, rows: 7, mTop: 8.5, mLeft: 5, gapH: 0, gapV: 0, offX: 0, offY: 0, esc: 100 };
+let I = Object.assign({}, IMP_DEF, ls.get('impressora', {}));
+const PAPEIS = { a4: [210, 297], carta: [215.9, 279.4] };
+function impSync() {
+  $('#iPapel').value = I.papel; $('#iMargem').value = I.margem; $('#iAdsPapel').value = I.adsPapel;
+  $('#iCols').value = I.cols; $('#iRows').value = I.rows; $('#iMTop').value = I.mTop; $('#iMLeft').value = I.mLeft;
+  $('#iGapH').value = I.gapH; $('#iGapV').value = I.gapV; $('#iOffX').value = I.offX; $('#iOffY').value = I.offY; $('#iEsc').value = I.esc;
+  $('#iBoxFolha').hidden = !(I.papel === 'a4' || I.papel === 'carta');
+  $('#iBoxAds').hidden = I.papel !== 'adesiva';
+  $('#iRoloInfo').hidden = I.papel !== 'rolo';
+}
+[['iPapel', 'papel', 's'], ['iMargem', 'margem'], ['iAdsPapel', 'adsPapel', 's'], ['iCols', 'cols', 'i'], ['iRows', 'rows', 'i'], ['iMTop', 'mTop'], ['iMLeft', 'mLeft'],
+ ['iGapH', 'gapH'], ['iGapV', 'gapV'], ['iOffX', 'offX'], ['iOffY', 'offY'], ['iEsc', 'esc']].forEach(([id, k, t]) => {
+  $('#' + id).addEventListener(t === 's' ? 'change' : 'input', e => {
+    let v = e.target.value;
+    if (t !== 's') { v = parseFloat(String(v).replace(',', '.')); if (isNaN(v)) return; if (t === 'i') v = Math.max(1, Math.round(v)); }
+    I[k] = v; ls.set('impressora', I); impSync(); etqRender();
+  });
+});
+
+// devolve o tamanho da página e a posição (mm) de cada etiqueta numa página
 function etqLayout() {
-  const w = E.w * 10, h = E.h * 10, g = +E.gap || 0, M = 5;
-  const calc = (PW, PH) => { const c = Math.max(0, Math.floor((PW - 2 * M + g) / (w + g))), r = Math.max(0, Math.floor((PH - 2 * M + g) / (h + g))); return { c, r, n: c * r, PW, PH }; };
-  const p = calc(210, 297), l = calc(297, 210);
-  return l.n > p.n ? Object.assign(l, { land: true }) : Object.assign(p, { land: false });
+  const w = E.w * 10, h = E.h * 10;
+  if (I.papel === 'rolo') return { PW: w, PH: h, slots: [{ x: 0, y: 0 }], n: 1, desc: 'Rolo: 1 etiqueta por página' };
+  if (I.papel === 'adesiva') {
+    const [PW, PH] = PAPEIS[I.adsPapel] || PAPEIS.a4, slots = [];
+    for (let r = 0; r < I.rows; r++) for (let c = 0; c < I.cols; c++) slots.push({ x: I.mLeft + c * (w + I.gapH), y: I.mTop + r * (h + I.gapV) });
+    const sobra = I.mLeft + I.cols * w + (I.cols - 1) * I.gapH > PW + 0.5 || I.mTop + I.rows * h + (I.rows - 1) * I.gapV > PH + 0.5;
+    return { PW, PH, slots, n: slots.length, desc: `Folha adesiva ${I.adsPapel.toUpperCase()}: ${I.cols} × ${I.rows}`, aviso: sobra ? '⚠️ As medidas passam do tamanho da folha. Confira colunas, linhas e margens.' : '' };
+  }
+  const g = +E.gap || 0, M = Math.max(0, +I.margem || 0), [A, B] = PAPEIS[I.papel] || PAPEIS.a4;
+  const calc = (PW, PH, land) => {
+    const c = Math.max(0, Math.floor((PW - 2 * M + g) / (w + g))), r = Math.max(0, Math.floor((PH - 2 * M + g) / (h + g)));
+    const ox = (PW - (c * w + (c - 1) * g)) / 2, oy = (PH - (r * h + (r - 1) * g)) / 2, slots = [];
+    for (let i = 0; i < r; i++) for (let j = 0; j < c; j++) slots.push({ x: ox + j * (w + g), y: oy + i * (h + g) });
+    return { PW, PH, slots, n: c * r, desc: `Folha ${I.papel === 'carta' ? 'Carta' : 'A4'}: ${c} × ${r}${land ? ', deitada' : ''}` };
+  };
+  const p = calc(A, B, false), l = calc(B, A, true);
+  return l.n > p.n ? l : p;
 }
 function etqAddProduto(p, save = true) {
   const promo = !!(p.promo_ativa && p.preco_promo != null);
@@ -1004,35 +1349,39 @@ let uid = 0;
 function etqRender() {
   etqSave();
   const L = etqLayout();
-  $('#pageStyle').textContent = `@media print{@page{size:A4 ${L.land ? 'landscape' : 'portrait'};margin:0}}`;
+  $('#pageStyle').textContent = `@media print{@page{size:${L.PW}mm ${L.PH}mm;margin:0}}`;
   let tags = [];
   E.items.forEach(it => { const q = Math.max(0, parseInt(it.qty) || 0); for (let i = 0; i < q; i++) tags.push(it); });
-  if (E.fill && tags.length && L.n) { const base = tags.slice(); let i = 0; while (tags.length % L.n) tags.push(base[i++ % base.length]); }
-  $('#fitInfo').textContent = !L.n ? '⚠️ Esse tamanho não cabe numa folha A4.' :
-    `Cabem ${L.n} por folha A4 (${L.c} × ${L.r}${L.land ? ', folha deitada' : ''}). Total: ${tags.length} etiqueta(s) em ${tags.length ? Math.ceil(tags.length / L.n) : 0} folha(s).`;
+  if (E.fill && tags.length && L.n > 1) { const base = tags.slice(); let i = 0; while (tags.length % L.n) tags.push(base[i++ % base.length]); }
+  const nPag = L.n ? Math.ceil(tags.length / L.n) : 0;
+  $('#fitInfo').textContent = !L.n ? '⚠️ Esse tamanho não cabe no papel escolhido.' :
+    `${L.desc} → ${L.n} por página. Total: ${tags.length} etiqueta(s) em ${nPag} página(s).` + (L.aviso ? ' ' + L.aviso : '');
   const first = E.items[0] || { price: '0,00' };
   $('#eOne').innerHTML = tagSVG(first, E.w * 10, E.h * 10, 'p' + (uid++)).replace(/width="[\d.]+mm" height="[\d.]+mm"/, `style="width:${Math.min(100, E.w * 14)}%;max-width:420px"`);
   const pages = $('#pages'); pages.innerHTML = '';
   if (!L.n || !tags.length) { if (!tags.length) pages.innerHTML = '<div class="empty">Adicione etiquetas do cadastro ou digite um preço.</div>'; return; }
-  const w = E.w * 10, h = E.h * 10, g = +E.gap || 0;
-  const ox = (L.PW - (L.c * w + (L.c - 1) * g)) / 2, oy = (L.PH - (L.r * h + (L.r - 1) * g)) / 2;
-  for (let pi = 0; pi < Math.ceil(tags.length / L.n); pi++) {
+  const w = E.w * 10, h = E.h * 10;
+  const maxPrev = I.papel === 'rolo' ? 60 : 30;  // limita a prévia para não travar o celular
+  for (let pi = 0; pi < nPag; pi++) {
     const wrap = document.createElement('div'); wrap.className = 'pagewrap';
-    const page = document.createElement('div'); page.className = 'page' + (L.land ? ' land' : '');
+    if (pi >= maxPrev) wrap.hidden = true;
+    const page = document.createElement('div'); page.className = 'page';
+    page.style.width = L.PW + 'mm'; page.style.height = L.PH + 'mm';
     let html = '';
     for (let k = 0; k < L.n; k++) {
       const t = tags[pi * L.n + k]; if (!t) break;
-      const x = ox + (k % L.c) * (w + g), y = oy + Math.floor(k / L.c) * (h + g);
+      const { x, y } = L.slots[k];
       html += `<div class="tag" style="left:${x}mm;top:${y}mm;width:${w}mm;height:${h}mm">${tagSVG(t, w, h, uid++)}</div>`;
       if (E.cut) html += `<div class="cut" style="left:${x}mm;top:${y}mm;width:${w}mm;height:${h}mm"></div>`;
     }
-    page.innerHTML = html; wrap.appendChild(page); pages.appendChild(wrap);
+    page.innerHTML = `<div class="pin">${html}</div>`; wrap.appendChild(page); pages.appendChild(wrap);
   }
+  if (nPag > maxPrev) pages.insertAdjacentHTML('beforeend', `<div class="info">Prévia mostra ${maxPrev} de ${nPag} páginas. Todas serão impressas.</div>`);
   scalePages();
 }
 function scalePages() {
   const avail = $('#pages').clientWidth || 300;
-  document.querySelectorAll('#pages .pagewrap').forEach(wr => {
+  document.querySelectorAll('#pages .pagewrap:not([hidden])').forEach(wr => {
     const pg = wr.firstChild, pw = pg.offsetWidth, ph = pg.offsetHeight, sc = Math.min(1, (avail - 4) / pw);
     pg.style.transform = `scale(${sc})`; wr.style.width = pw * sc + 'px'; wr.style.height = ph * sc + 'px';
   });
@@ -1076,7 +1425,7 @@ async function etqOpen() {
   try { await loadProdutos(); } catch (e) {}
   E.items.forEach(it => { if (!it.pid) return; const p = S.produtos.find(x => x.id === it.pid); if (!p) return;
     const promo = !!(p.promo_ativa && p.preco_promo != null); it.name = p.descricao; it.price = brl(promo ? p.preco_promo : p.preco); it.promo = promo; it.old = promo ? brl(p.preco) : ''; it.ean = p.codigo_barras || ''; });
-  etqSync(); etqPresets(); etqItems(); etqRender();
+  etqSync(); impSync(); etqPresets(); etqItems(); etqRender();
 }
 $('#eAdd').onclick = () => { E.items.push({ price: '', qty: 1, promo: false, name: '', old: '', ean: '' }); etqItems(); etqRender(); const ins = document.querySelectorAll('#eItems input[data-k=price]'); ins[ins.length - 1].focus(); };
 $('#eClear').onclick = async () => { if (E.items.length && await confirma('Limpar etiquetas', 'Remover todas as etiquetas da lista?', 'Limpar')) { E.items = []; etqItems(); etqRender(); } };
@@ -1102,8 +1451,31 @@ $('#eLogoClear').onclick = () => { E.logo = null; etqSync(); etqRender(); };
 $('#ePrint').onclick = () => {
   if (!document.querySelector('#pages .page')) return toast('Nada para imprimir.', true);
   const pa = $('#printArea'); pa.innerHTML = '';
-  document.querySelectorAll('#pages .page').forEach(p => { const c = p.cloneNode(true); c.style.transform = 'none'; pa.appendChild(c); });
+  document.querySelectorAll('#pages .page').forEach(p => { const c = p.cloneNode(true); c.style.transform = 'none'; calibrar(c); pa.appendChild(c); });
   window.print();
+};
+function calibrar(page) {
+  const pin = page.querySelector('.pin'); if (!pin) return;
+  const esc = (+I.esc || 100) / 100;
+  pin.style.transform = `translate(${+I.offX || 0}mm, ${+I.offY || 0}mm) scale(${esc})`;
+}
+$('#iTeste').onclick = () => {
+  const L = etqLayout(), w = E.w * 10, h = E.h * 10, PW = L.PW, PH = L.PH;
+  const W = Math.min(100, PW - 10), x0 = Math.max(5, (PW - W) / 2), y0 = Math.min(15, PH * 0.15);
+  let t = '';
+  for (let i = 0; i <= W; i++) { const hh = i % 10 === 0 ? 4 : i % 5 === 0 ? 2.5 : 1.5; t += `<line x1="${x0 + i}" y1="${y0}" x2="${x0 + i}" y2="${y0 + hh}" stroke="#000" stroke-width="0.15"/>`; if (i % 10 === 0) t += `<text x="${x0 + i}" y="${y0 + 7}" font-size="2.6" text-anchor="middle" font-family="Arial">${i / 10}</text>`; }
+  t += `<line x1="${x0}" y1="${y0}" x2="${x0 + W}" y2="${y0}" stroke="#000" stroke-width="0.25"/>`;
+  t += `<text x="${x0}" y="${y0 - 2}" font-size="3" font-family="Arial">Régua de ${W / 10} cm — meça com uma régua de verdade</text>`;
+  const bx = Math.max(0, (PW - w) / 2), by = Math.min(PH - h, y0 + 14);
+  t += `<rect x="${bx}" y="${by}" width="${w}" height="${h}" fill="none" stroke="#e30613" stroke-width="0.4"/>`;
+  t += `<text x="${bx + w / 2}" y="${by + h / 2}" font-size="${Math.min(4, h / 6)}" text-anchor="middle" font-family="Arial" fill="#e30613">${E.w} × ${E.h} cm</text>`;
+  const pg = document.createElement('div'); pg.className = 'page'; pg.style.width = PW + 'mm'; pg.style.height = PH + 'mm';
+  pg.innerHTML = `<div class="pin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${PW} ${PH}" width="${PW}mm" height="${PH}mm" style="position:absolute;left:0;top:0">${t}</svg></div>`;
+  calibrar(pg);
+  $('#pageStyle').textContent = `@media print{@page{size:${PW}mm ${PH}mm;margin:0}}`;
+  const pa = $('#printArea'); pa.innerHTML = ''; pa.appendChild(pg);
+  window.print();
+  setTimeout(etqRender, 500);
 };
 
 // ===================== PAINEL DO SUPORTE (3 toques no 🍀) =====================
@@ -1145,6 +1517,21 @@ async function painelSuporte() {
       if (!S.perfil || S.perfil.papel !== 'suporte') { await sb.auth.signOut(); S.perfil = null; showLogin(); throw new Error('Acesso não autorizado.'); }
     }}]);
 }
+
+// ===================== APP INSTALÁVEL (PWA) =====================
+let pedidoInstalar = null;
+const ehIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const instalado = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+function botoesInstalar() { document.querySelectorAll('.instalarApp').forEach(b => b.hidden = instalado() || !(pedidoInstalar || ehIOS)); }
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); pedidoInstalar = e; botoesInstalar(); });
+window.addEventListener('appinstalled', () => { pedidoInstalar = null; botoesInstalar(); toast('Aplicativo instalado!'); });
+document.addEventListener('click', async e => {
+  if (!e.target.closest('.instalarApp')) return;
+  if (pedidoInstalar) { pedidoInstalar.prompt(); await pedidoInstalar.userChoice; pedidoInstalar = null; botoesInstalar(); }
+  else if (ehIOS) dlg('Instalar no iPhone', '<p style="margin-top:0">1. Abra este site no <b>Safari</b>.<br>2. Toque em <b>Compartilhar</b> (quadrado com seta para cima).<br>3. Escolha <b>"Adicionar à Tela de Início"</b>.</p>');
+});
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+botoesInstalar();
 
 // ===================== INÍCIO =====================
 sb.auth.onAuthStateChange(ev => {
