@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#e30613">
+<title>Trevo Gestão</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--red:#e30613;--dred:#b8040f;--green:#1a7f37;--yellow:#ffd000;--bg:#f3f4f6;--card:#fff;--ink:#1f2937;--mut:#6b7280;--line:#e5e7eb}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink);-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+button{font-family:inherit}
+input,select{font-family:inherit}
+/* ---------- login ---------- */
+#vLogin{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(160deg,var(--red),var(--dred))}
+.loginbox{background:#fff;border-radius:18px;padding:22px;width:100%;max-width:360px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.loginbox .logo{display:flex;justify-content:center;margin-bottom:10px}
+.loginbox h1{text-align:center;font-size:18px;margin:0 0 16px}
+.field{margin-bottom:12px}
+label{font-size:12px;color:var(--mut);display:block;margin-bottom:4px;font-weight:600}
+input[type=text],input[type=number],input[type=password],input[type=email],input[type=search],select{width:100%;padding:11px;border:1.5px solid var(--line);border-radius:10px;font-size:16px;background:#fff;color:var(--ink)}
+input:focus,select:focus{outline:none;border-color:var(--green)}
+.link{background:none;border:none;color:var(--mut);font-size:13px;text-decoration:underline;cursor:pointer;padding:6px;display:block;margin:8px auto 0}
+/* ---------- app shell ---------- */
+header.top{background:var(--red);color:#fff;padding:10px 14px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:20;box-shadow:0 2px 6px rgba(0,0,0,.15)}
+header.top .t{flex:1;min-width:0}
+header.top b{display:block;font-size:16px}
+header.top small{opacity:.9;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+header.top select{width:auto;max-width:170px;padding:7px;font-size:14px;border:none;border-radius:8px}
+nav.tabs{display:flex;gap:6px;overflow-x:auto;padding:8px 12px;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:52px;z-index:19;scrollbar-width:none}
+nav.tabs::-webkit-scrollbar{display:none}
+nav.tabs button{border:none;background:#f3f4f6;border-radius:999px;padding:9px 14px;font-size:14px;font-weight:700;color:var(--ink);white-space:nowrap;cursor:pointer}
+nav.tabs button.on{background:var(--green);color:#fff}
+main{max-width:1100px;margin:0 auto;padding:12px}
+.card{background:var(--card);border-radius:14px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.08);margin-bottom:12px}
+.card h2{font-size:13px;margin:0 0 10px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut)}
+.row{display:flex;gap:8px;align-items:end;flex-wrap:wrap}
+.f{flex:1;min-width:90px}
+.btn{border:none;border-radius:12px;padding:12px 16px;font-size:15px;font-weight:800;cursor:pointer;background:var(--green);color:#fff}
+.btn.red{background:var(--red)}
+.btn.ghost{background:#fff;color:var(--ink);border:1.5px solid var(--line)}
+.btn.full{width:100%}
+.btn:disabled{opacity:.6}
+.btn.sm{padding:8px 12px;font-size:13px;border-radius:10px}
+.icon{border:none;background:#f3f4f6;border-radius:10px;min-width:40px;height:40px;font-size:17px;cursor:pointer;color:var(--ink)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1.5px solid var(--line);background:#fff;border-radius:999px;padding:8px 12px;font-size:14px;cursor:pointer;font-weight:600;color:var(--ink)}
+.chip.on{background:var(--green);border-color:var(--green);color:#fff}
+.pill{border:1.5px solid var(--red);color:var(--red);background:#fff;border-radius:999px;padding:7px 12px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}
+.pill.on{background:var(--red);color:#fff}
+.info{font-size:13px;color:var(--mut);margin-top:8px}
+.chk{display:flex;align-items:center;gap:8px;font-size:14px;margin-top:8px}
+.chk input{width:18px;height:18px;flex:none}
+.empty{text-align:center;color:var(--mut);padding:24px 8px;font-size:14px}
+.badge{display:inline-block;font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;background:#eef7f0;color:var(--green);text-transform:uppercase}
+.badge.red{background:#fdecee;color:var(--red)}
+.badge.gray{background:#f3f4f6;color:var(--mut)}
+/* list */
+.list{display:grid;gap:8px}
+.li{border:1.5px solid var(--line);border-radius:12px;padding:10px;display:flex;gap:10px;align-items:center}
+.li .grow{flex:1;min-width:0}
+.li .ttl{font-weight:700;font-size:15px;overflow:hidden;text-overflow:ellipsis}
+.li .sub{font-size:12px;color:var(--mut);margin-top:2px}
+.li .price{font-weight:900;font-size:16px;white-space:nowrap;text-align:right}
+.li .price s{display:block;font-size:12px;color:var(--mut);font-weight:600}
+.li .acts{display:flex;gap:6px}
+.li input[type=checkbox]{width:20px;height:20px;flex:none}
+/* etiquetas */
+.item{border:1.5px solid var(--line);border-radius:12px;padding:10px;margin-bottom:10px;display:grid;gap:8px}
+.item .top{display:flex;gap:8px;align-items:end}
+.promo{display:none;gap:8px}
+.item.promoOn .promo{display:flex}
+.preview-one{display:flex;justify-content:center;padding:8px 0}
+.preview-one svg{max-width:100%;height:auto;filter:drop-shadow(0 2px 6px rgba(0,0,0,.2))}
+#pages{display:flex;flex-direction:column;align-items:center;gap:14px}
+.pagewrap{overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.18);background:#fff}
+.page{width:210mm;height:297mm;background:#fff;position:relative;transform-origin:0 0;overflow:hidden}
+.page.land{width:297mm;height:210mm}
+.tag{position:absolute;display:block}
+.cut{position:absolute;border:0.15mm dashed #bbb;pointer-events:none}
+.logo-prev{max-height:50px;margin-top:6px}
+@media(min-width:900px){.etq-grid{display:grid;grid-template-columns:420px 1fr;gap:12px;align-items:start}}
+/* dialog */
+dialog.dlg{border:none;border-radius:16px;padding:0;width:min(520px,94vw);max-height:90vh;box-shadow:0 20px 50px rgba(0,0,0,.35)}
+dialog.dlg::backdrop{background:rgba(0,0,0,.45)}
+dialog.dlg form{display:flex;flex-direction:column;max-height:90vh}
+dialog.dlg h3{margin:0;padding:14px 16px;border-bottom:1px solid var(--line);font-size:16px}
+dialog.dlg .dbody{padding:14px 16px;overflow:auto}
+dialog.dlg .dact{display:flex;gap:8px;justify-content:flex-end;padding:12px 16px;border-top:1px solid var(--line);flex-wrap:wrap}
+table.prev{width:100%;border-collapse:collapse;font-size:12px}
+table.prev td,table.prev th{border-bottom:1px solid var(--line);padding:4px;text-align:left}
+/* toast */
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#111;color:#fff;padding:12px 16px;border-radius:12px;font-size:14px;z-index:100;max-width:92vw;box-shadow:0 6px 20px rgba(0,0,0,.3);opacity:0;pointer-events:none;transition:opacity .2s}
+#toast.show{opacity:1}
+#toast.err{background:var(--red)}
+#printArea{display:none}
+@media print{
+  @page{size:A4;margin:0}
+  body{background:#fff}
+  body>*:not(#printArea){display:none!important}
+  #printArea{display:block}
+  #printArea .page{transform:none!important;break-after:page;page-break-after:always}
+  #printArea .page:last-child{break-after:auto;page-break-after:auto}
+  .cut{display:none}
+}
+</style>
+<style id="pageStyle"></style>
+</head>
+<body>
+
+<!-- =============== LOGIN =============== -->
+<section id="vLogin" hidden>
+  <div class="loginbox">
+    <div class="logo" id="loginLogo"></div>
+    <h1>Acesso restrito</h1>
+    <form id="fLogin" autocomplete="on">
+      <div class="field"><label>Código da filial</label><input type="text" id="lFilial" autocomplete="organization" autocapitalize="characters" inputmode="text" placeholder="Ex.: 0001"></div>
+      <div class="field"><label>Matrícula</label><input type="text" id="lMat" autocomplete="username" autocapitalize="characters" required></div>
+      <div class="field"><label>Senha</label><input type="password" id="lSenha" autocomplete="current-password" required></div>
+      <button class="btn red full" id="lBtn" type="submit">Entrar</button>
+    </form>
+    <button class="link" id="lEsqueci" type="button">Esqueci minha senha (gestor)</button>
+    <div class="info" style="text-align:center">Colaborador: peça ao seu gestor para redefinir a senha.</div>
+  </div>
+</section>
+
+<!-- =============== APP =============== -->
+<section id="vMain" hidden>
+  <header class="top">
+    <div class="t"><b id="hFilial">—</b><small id="hUser"></small></div>
+    <select id="hFilialSel" hidden aria-label="Filial"></select>
+  </header>
+  <nav class="tabs" id="tabs"></nav>
+  <main>
+    <!-- ETIQUETAS -->
+    <div id="tab-etiquetas" class="tab" hidden>
+      <div class="etq-grid">
+        <div>
+          <div class="card">
+            <h2>Tamanho da etiqueta</h2>
+            <div class="chips" id="presets"></div>
+            <div class="row" style="margin-top:10px">
+              <div class="f"><label>Largura (cm)</label><input type="number" id="ew" step="0.1" min="2" inputmode="decimal"></div>
+              <div class="f"><label>Altura (cm)</label><input type="number" id="eh" step="0.1" min="1.5" inputmode="decimal"></div>
+              <div class="f"><label>Espaço entre (mm)</label><input type="number" id="egap" step="0.5" min="0" inputmode="decimal"></div>
+            </div>
+            <div class="info" id="fitInfo"></div>
+            <label class="chk"><input type="checkbox" id="eCut"> Mostrar linhas de corte na prévia</label>
+          </div>
+          <div class="card">
+            <h2>Etiquetas</h2>
+            <div class="row" style="margin-bottom:10px">
+              <button class="btn sm" id="eFromCad" style="flex:1">📦 Adicionar do cadastro</button>
+              <button class="btn sm ghost" id="eClear">Limpar</button>
+            </div>
+            <div id="eItems"></div>
+            <button class="btn ghost full" id="eAdd" style="border-style:dashed;color:var(--green);border-color:var(--green)">+ Digitar preço avulso</button>
+            <label class="chk"><input type="checkbox" id="eShowDesc"> Mostrar a descrição do produto em todas as etiquetas</label>
+            <label class="chk"><input type="checkbox" id="eFill"> Completar a folha repetindo as etiquetas</label>
+          </div>
+          <div class="card">
+            <h2>Marca</h2>
+            <div class="row">
+              <div class="f"><label>Linha de cima</label><input type="text" id="eBrandTop"></div>
+              <div class="f"><label>Nome</label><input type="text" id="eBrandName"></div>
+            </div>
+            <div class="row" style="margin-top:10px">
+              <label class="btn sm ghost" style="margin:0">Usar meu logo (imagem)<input type="file" id="eLogo" accept="image/*" hidden></label>
+              <button class="btn sm ghost" id="eLogoClear" hidden>Remover logo</button>
+            </div>
+            <img id="eLogoPrev" class="logo-prev" alt="" hidden>
+          </div>
+          <button class="btn red full" id="ePrint">🖨️ Imprimir / Salvar PDF</button>
+          <div class="info" style="text-align:center;margin-bottom:12px">No celular: Imprimir → "Salvar como PDF", escala 100%, sem margens.</div>
+        </div>
+        <div>
+          <div class="card"><h2>Prévia</h2><div class="preview-one" id="eOne"></div></div>
+          <div class="card"><h2>Folhas A4</h2><div id="pages"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PRODUTOS -->
+    <div id="tab-produtos" class="tab" hidden>
+      <div class="card">
+        <div class="row">
+          <div class="f" style="flex:3"><input type="search" id="pBusca" placeholder="Buscar por descrição ou código"></div>
+          <button class="icon" id="pScan" title="Ler código de barras">📷</button>
+        </div>
+        <div class="row" style="margin-top:10px" id="pEditBar">
+          <button class="btn sm" id="pNovo">+ Novo produto</button>
+          <label class="btn sm ghost" style="margin:0">⬆️ Importar planilha<input type="file" id="pImport" accept=".csv,.xlsx,.xls,.ods,.txt" hidden></label>
+          <button class="btn sm ghost" id="pExport">⬇️ Exportar</button>
+        </div>
+        <div class="info" id="pInfo"></div>
+      </div>
+      <div class="card" id="pSelBar" hidden>
+        <div class="row" style="align-items:center">
+          <div class="f"><b id="pSelCount">0</b> selecionado(s)</div>
+          <button class="btn sm red" id="pSelEtq">🏷️ Gerar etiquetas</button>
+          <button class="btn sm ghost" id="pSelNone">Limpar</button>
+        </div>
+      </div>
+      <div class="card"><div class="list" id="pList"></div><button class="btn ghost full" id="pMore" hidden style="margin-top:10px">Mostrar mais</button></div>
+    </div>
+
+    <!-- EQUIPE -->
+    <div id="tab-equipe" class="tab" hidden>
+      <div class="card">
+        <div class="row">
+          <button class="btn sm" id="qNovoColab">+ Convidar colaborador</button>
+          <button class="btn sm ghost" id="qNovoGestor" hidden>+ Criar gestor</button>
+        </div>
+        <div class="info">O acesso é feito com o código da filial, a matrícula e a senha que você definir aqui.</div>
+      </div>
+      <div class="card"><div class="list" id="qList"></div></div>
+    </div>
+
+    <!-- FILIAIS -->
+    <div id="tab-filiais" class="tab" hidden>
+      <div class="card"><button class="btn sm" id="fNova">+ Nova filial</button></div>
+      <div class="card"><div class="list" id="fList"></div></div>
+    </div>
+
+    <!-- CONTA -->
+    <div id="tab-conta" class="tab" hidden>
+      <div class="card">
+        <h2>Minha conta</h2>
+        <div id="cInfo"></div>
+      </div>
+      <div class="card">
+        <h2>Trocar senha</h2>
+        <div class="field"><label>Nova senha (mínimo 8 caracteres)</label><input type="password" id="cS1" autocomplete="new-password"></div>
+        <div class="field"><label>Repita a nova senha</label><input type="password" id="cS2" autocomplete="new-password"></div>
+        <button class="btn" id="cSalvar">Salvar nova senha</button>
+      </div>
+      <button class="btn ghost full" id="cSair">Sair</button>
+    </div>
+  </main>
+</section>
+
+<div id="printArea"></div>
+<div id="toast"></div>
+
+<script>
+'use strict';
+// ===================== CONFIG =====================
+const SUPABASE_URL = 'https://fhifclmrfmumlddisyew.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_jh0EmYuu5_qxBDFshsc-uA_hULTmxPY';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const PERM_LABELS = {
+  etiquetas: 'Gerar etiquetas',
+  produtos_ver: 'Ver produtos e preços',
+  produtos_editar: 'Cadastrar e editar produtos/preços',
+};
+
+// ===================== UTIL =====================
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const brl = n => (n == null || isNaN(n)) ? '' : Number(n).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+function parsePreco(v) {
+  if (typeof v === 'number') return Math.round(v * 100) / 100;
+  let s = String(v ?? '').replace(/[R$\s]/g, '');
+  if (!s) return null;
+  if (s.includes(',') && s.includes('.')) s = s.lastIndexOf(',') > s.lastIndexOf('.') ? s.replace(/\./g, '').replace(',', '.') : s.replace(/,/g, '');
+  else if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+  const n = parseFloat(s);
+  return isNaN(n) ? null : Math.round(n * 100) / 100;
+}
+const ls = {
+  get(k, d) { try { const v = localStorage.getItem('trevo_' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem('trevo_' + k, JSON.stringify(v)); } catch (e) {} },
+};
+let toastT;
+function toast(msg, err) {
+  const t = $('#toast'); t.textContent = msg; t.className = 'show' + (err ? ' err' : '');
+  clearTimeout(toastT); toastT = setTimeout(() => t.className = '', err ? 4500 : 2500);
+}
+function dlg(title, html, buttons) {
+  const d = document.createElement('dialog'); d.className = 'dlg';
+  d.innerHTML = `<form method="dialog" onsubmit="return false"><h3>${esc(title)}</h3><div class="dbody">${html}</div><div class="dact"></div></form>`;
+  const act = d.querySelector('.dact');
+  (buttons || [{t: 'Fechar'}]).forEach(b => {
+    const el = document.createElement('button'); el.type = 'button';
+    el.className = 'btn sm ' + (b.cls || 'ghost'); el.textContent = b.t;
+    el.onclick = async () => {
+      if (!b.fn) { d.close(); return; }
+      el.disabled = true;
+      try { const r = await b.fn(d); if (r !== false) d.close(); }
+      catch (e) { toast(e.message || String(e), true); }
+      el.disabled = false;
+    };
+    act.appendChild(el);
+  });
+  d.addEventListener('close', () => setTimeout(() => d.remove(), 50));
+  document.body.appendChild(d); d.showModal();
+  return d;
+}
+const confirma = (title, msg, okTxt = 'Confirmar', cls = 'red') => new Promise(res => {
+  let ok = false;
+  const d = dlg(title, `<p style="margin:0">${msg}</p>`, [{t: 'Cancelar'}, {t: okTxt, cls, fn: () => { ok = true; }}]);
+  d.addEventListener('close', () => res(ok));
+});
+
+async function callFn(name, body) {
+  const { data: { session } } = await sb.auth.getSession();
+  const headers = { 'Content-Type': 'application/json', apikey: SUPABASE_KEY };
+  if (session) headers.Authorization = 'Bearer ' + session.access_token;
+  let r;
+  try { r = await fetch(`${SUPABASE_URL}/functions/v1/${name}`, { method: 'POST', headers, body: JSON.stringify(body) }); }
+  catch (e) { throw new Error('Sem conexão com o servidor.'); }
+  let j = {}; try { j = await r.json(); } catch (e) {}
+  if (!r.ok) throw new Error(j.erro || ('Erro ' + r.status));
+  return j;
+}
+
+// ===================== ESTADO =====================
+const S = { perfil: null, filial: null, filiais: [], produtos: [], equipe: [], tab: null, sel: new Set(), limit: 60 };
+const isSup = () => S.perfil?.papel === 'suporte';
+const isGestor = () => S.perfil?.papel === 'gestor';
+const perm = p => S.perfil && (S.perfil.papel !== 'colaborador' || !!(S.perfil.permissoes || {})[p]);
+
+// ===================== AUTH =====================
+function showLogin() {
+  $('#vMain').hidden = true; $('#vLogin').hidden = false;
+  $('#lFilial').value = ls.get('ultFilial', '');
+  $('#loginLogo').innerHTML = logoSVG(200);
+}
+$('#fLogin').onsubmit = async e => {
+  e.preventDefault();
+  const btn = $('#lBtn'); btn.disabled = true; btn.textContent = 'Entrando...';
+  try {
+    const filial = $('#lFilial').value.trim().toUpperCase();
+    const r = await callFn('login', { filial, matricula: $('#lMat').value, senha: $('#lSenha').value });
+    const { error } = await sb.auth.setSession({ access_token: r.access_token, refresh_token: r.refresh_token });
+    if (error) throw error;
+    ls.set('ultFilial', filial);
+    $('#lSenha').value = '';
+    await enter();
+  } catch (err) { toast(err.message, true); }
+  btn.disabled = false; btn.textContent = 'Entrar';
+};
+$('#lEsqueci').onclick = () => {
+  dlg('Recuperar senha do gestor', `<div class="field"><label>E-mail cadastrado</label><input type="email" id="rEmail" autocomplete="email"></div>
+    <div class="info">Você vai receber um link para criar uma nova senha.</div>`, [
+    {t: 'Cancelar'},
+    {t: 'Enviar link', cls: 'red', fn: async d => {
+      const email = d.querySelector('#rEmail').value.trim();
+      if (!email) throw new Error('Informe o e-mail.');
+      await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
+      toast('Se o e-mail estiver cadastrado, o link chega em instantes.');
+    }}]);
+};
+function telaNovaSenha() {
+  dlg('Criar nova senha', `<div class="field"><label>Nova senha (mínimo 8)</label><input type="password" id="nS1" autocomplete="new-password"></div>
+    <div class="field"><label>Repita</label><input type="password" id="nS2" autocomplete="new-password"></div>`, [
+    {t: 'Salvar', cls: 'red', fn: async d => {
+      const a = d.querySelector('#nS1').value, b = d.querySelector('#nS2').value;
+      if (a.length < 8) throw new Error('A senha precisa ter pelo menos 8 caracteres.');
+      if (a !== b) throw new Error('As senhas não conferem.');
+      const { error } = await sb.auth.updateUser({ password: a });
+      if (error) throw error;
+      toast('Senha alterada!');
+      await enter();
+    }}]);
+}
+async function sair() { await sb.auth.signOut(); S.perfil = null; showLogin(); }
+
+async function enter() {
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) return showLogin();
+  const { data: p, error } = await sb.from('perfis').select('*').eq('id', user.id).maybeSingle();
+  if (error || !p || !p.ativo) { await sb.auth.signOut(); toast('Acesso não autorizado.', true); return showLogin(); }
+  S.perfil = p;
+  if (isSup()) {
+    await loadFiliais();
+    const saved = ls.get('filialSel', null);
+    S.filial = S.filiais.find(f => f.id === saved) || S.filiais[0] || null;
+  } else {
+    const { data: f } = await sb.from('filiais').select('*').eq('id', p.filial_id).maybeSingle();
+    if (!f || !f.ativo) { await sb.auth.signOut(); toast('Filial desativada.', true); return showLogin(); }
+    S.filial = f;
+  }
+  showMain();
+}
+
+// ===================== SHELL =====================
+const TABS = [
+  { id: 'etiquetas', t: '🏷️ Etiquetas', ok: () => S.filial && perm('etiquetas') },
+  { id: 'produtos', t: '📦 Produtos', ok: () => S.filial && (perm('produtos_ver') || perm('produtos_editar')) },
+  { id: 'equipe', t: '👥 Equipe', ok: () => S.filial && (isGestor() || isSup()) },
+  { id: 'filiais', t: '🏬 Filiais', ok: () => isSup() },
+  { id: 'conta', t: '👤 Minha conta', ok: () => true },
+];
+function showMain() {
+  $('#vLogin').hidden = true; $('#vMain').hidden = false;
+  const p = S.perfil;
+  $('#hFilial').textContent = S.filial ? `${S.filial.codigo} · ${S.filial.nome}` : 'Suporte';
+  $('#hUser').textContent = `${p.nome} · ${({suporte: 'Suporte', gestor: 'Gestor', colaborador: 'Colaborador'})[p.papel]}`;
+  const sel = $('#hFilialSel');
+  if (isSup() && S.filiais.length) {
+    sel.hidden = false;
+    sel.innerHTML = S.filiais.map(f => `<option value="${f.id}" ${S.filial && f.id === S.filial.id ? 'selected' : ''}>${esc(f.codigo)} · ${esc(f.nome)}${f.ativo ? '' : ' (inativa)'}</option>`).join('');
+  } else sel.hidden = true;
+  const nav = $('#tabs'); nav.innerHTML = '';
+  const vis = TABS.filter(t => t.ok());
+  vis.forEach(t => {
+    const b = document.createElement('button'); b.textContent = t.t; b.dataset.id = t.id;
+    b.onclick = () => openTab(t.id); nav.appendChild(b);
+  });
+  S.produtos = []; S.sel.clear();
+  const want = vis.find(t => t.id === ls.get('tab', '')) ? ls.get('tab') : vis[0].id;
+  openTab(want);
+}
+$('#hFilialSel').onchange = e => {
+  S.filial = S.filiais.find(f => f.id === e.target.value); ls.set('filialSel', S.filial.id); showMain();
+};
+function openTab(id) {
+  S.tab = id; ls.set('tab', id);
+  document.querySelectorAll('.tab').forEach(t => t.hidden = t.id !== 'tab-' + id);
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.id === id));
+  ({ etiquetas: etqOpen, produtos: prodOpen, equipe: equipeOpen, filiais: filiaisOpen, conta: contaOpen })[id]();
+  window.scrollTo(0, 0);
+}
+
+// ===================== PRODUTOS =====================
+async function loadProdutos(force) {
+  if (S.produtos.length && !force && S.produtosFilial === S.filial.id) return;
+  let all = [], from = 0;
+  while (true) {
+    const { data, error } = await sb.from('produtos').select('*').eq('filial_id', S.filial.id).order('descricao').range(from, from + 999);
+    if (error) { toast('Erro ao carregar produtos: ' + error.message, true); break; }
+    all = all.concat(data); if (data.length < 1000) break; from += 1000;
+  }
+  S.produtos = all; S.produtosFilial = S.filial.id;
+}
+const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+function filtraProdutos(q) {
+  q = norm(q).trim(); if (!q) return S.produtos;
+  const parts = q.split(/\s+/);
+  return S.produtos.filter(p => { const h = norm(p.descricao) + ' ' + (p.codigo_barras || '') + ' ' + norm(p.categoria); return parts.every(x => h.includes(x)); });
+}
+async function prodOpen() {
+  $('#pEditBar').hidden = !perm('produtos_editar');
+  $('#pList').innerHTML = '<div class="empty">Carregando...</div>';
+  await loadProdutos(); S.limit = 60; prodRender();
+}
+function precoHTML(p) {
+  return p.promo_ativa && p.preco_promo != null
+    ? `<s>R$ ${brl(p.preco)}</s><span style="color:var(--red)">R$ ${brl(p.preco_promo)}</span>`
+    : `R$ ${brl(p.preco)}`;
+}
+function prodRender() {
+  const list = filtraProdutos($('#pBusca').value);
+  $('#pInfo').textContent = `${S.produtos.length} produto(s) cadastrado(s)` + (list.length !== S.produtos.length ? ` · ${list.length} encontrado(s)` : '');
+  const edit = perm('produtos_editar'), etq = perm('etiquetas');
+  const el = $('#pList');
+  if (!list.length) { el.innerHTML = `<div class="empty">${S.produtos.length ? 'Nenhum produto encontrado.' : 'Nenhum produto cadastrado ainda.'}</div>`; $('#pMore').hidden = true; return; }
+  el.innerHTML = list.slice(0, S.limit).map(p => `
+    <div class="li" data-id="${p.id}">
+      ${etq ? `<input type="checkbox" class="psel" ${S.sel.has(p.id) ? 'checked' : ''} aria-label="Selecionar">` : ''}
+      <div class="grow"><div class="ttl">${esc(p.descricao)}</div>
+        <div class="sub">${p.codigo_barras ? esc(p.codigo_barras) : 'sem código'}${p.categoria ? ' · ' + esc(p.categoria) : ''}${p.promo_ativa && p.preco_promo != null ? ' · <span class="badge red">Promoção</span>' : ''}</div></div>
+      <div class="price">${precoHTML(p)}</div>
+      <div class="acts">${edit ? `<button class="icon pedit" title="Editar">✏️</button>` : ''}</div>
+    </div>`).join('');
+  $('#pMore').hidden = list.length <= S.limit;
+  selBar();
+}
+function selBar() { $('#pSelBar').hidden = !S.sel.size; $('#pSelCount').textContent = S.sel.size; }
+$('#pBusca').oninput = () => { S.limit = 60; prodRender(); };
+$('#pMore').onclick = () => { S.limit += 60; prodRender(); };
+$('#pList').onclick = e => {
+  const li = e.target.closest('.li'); if (!li) return;
+  const p = S.produtos.find(x => x.id === li.dataset.id);
+  if (e.target.classList.contains('psel')) { e.target.checked ? S.sel.add(p.id) : S.sel.delete(p.id); selBar(); return; }
+  if (e.target.classList.contains('pedit')) prodForm(p);
+};
+$('#pSelNone').onclick = () => { S.sel.clear(); prodRender(); };
+$('#pSelEtq').onclick = () => {
+  const ps = S.produtos.filter(p => S.sel.has(p.id));
+  ps.forEach(p => etqAddProduto(p, false)); etqSave();
+  S.sel.clear(); toast(`${ps.length} etiqueta(s) adicionada(s)`); openTab('etiquetas');
+};
+$('#pScan').onclick = async () => { const c = await scan(); if (c) { $('#pBusca').value = c; prodRender(); const f = S.produtos.find(p => p.codigo_barras === c); if (!f && perm('produtos_editar') && await confirma('Produto não encontrado', `Nenhum produto com o código <b>${esc(c)}</b>. Cadastrar agora?`, 'Cadastrar', '')) prodForm({ codigo_barras: c }); } };
+$('#pNovo').onclick = () => prodForm({});
+
+function prodForm(p) {
+  const novo = !p.id;
+  const d = dlg(novo ? 'Novo produto' : 'Editar produto', `
+    <div class="field"><label>Descrição *</label><input type="text" id="fd" maxlength="200" value="${esc(p.descricao || '')}"></div>
+    <div class="field"><label>Código de barras</label><div class="row"><div class="f"><input type="text" id="fc" inputmode="numeric" maxlength="40" value="${esc(p.codigo_barras || '')}"></div><button type="button" class="icon" id="fcScan">📷</button></div></div>
+    <div class="row">
+      <div class="f field"><label>Preço (R$) *</label><input type="text" id="fp" inputmode="decimal" value="${p.preco != null ? brl(p.preco) : ''}"></div>
+      <div class="f field"><label>Preço promocional</label><input type="text" id="fpp" inputmode="decimal" value="${p.preco_promo != null ? brl(p.preco_promo) : ''}"></div>
+    </div>
+    <label class="chk" style="margin-top:0;margin-bottom:12px"><input type="checkbox" id="fpa" ${p.promo_ativa ? 'checked' : ''}> Promoção ativa</label>
+    <div class="field"><label>Categoria</label><input type="text" id="fcat" maxlength="60" value="${esc(p.categoria || '')}"></div>`,
+    [
+      ...(novo ? [] : [{ t: '🗑️ Excluir', cls: 'ghost', fn: async () => {
+        if (!await confirma('Excluir produto', `Excluir <b>${esc(p.descricao)}</b>?`, 'Excluir')) return false;
+        const { error } = await sb.from('produtos').delete().eq('id', p.id);
+        if (error) throw new Error(error.message);
+        S.produtos = S.produtos.filter(x => x.id !== p.id); S.sel.delete(p.id); prodRender(); toast('Produto excluído');
+      }}]),
+      { t: 'Cancelar' },
+      { t: 'Salvar', cls: '', fn: async d => {
+        const row = {
+          filial_id: S.filial.id,
+          descricao: d.querySelector('#fd').value.trim(),
+          codigo_barras: d.querySelector('#fc').value.trim() || null,
+          preco: parsePreco(d.querySelector('#fp').value),
+          preco_promo: parsePreco(d.querySelector('#fpp').value),
+          promo_ativa: d.querySelector('#fpa').checked,
+          categoria: d.querySelector('#fcat').value.trim() || null,
+        };
+        if (!row.descricao) throw new Error('Informe a descrição.');
+        if (row.preco == null) throw new Error('Informe o preço.');
+        if (row.promo_ativa && row.preco_promo == null) throw new Error('Informe o preço promocional ou desmarque a promoção.');
+        const q = novo ? sb.from('produtos').insert(row).select().single() : sb.from('produtos').update(row).eq('id', p.id).select().single();
+        const { data, error } = await q;
+        if (error) throw new Error(error.code === '23505' ? 'Já existe um produto com esse código de barras.' : error.message);
+        if (novo) S.produtos.push(data); else S.produtos[S.produtos.findIndex(x => x.id === p.id)] = data;
+        S.produtos.sort((a, b) => a.descricao.localeCompare(b.descricao, 'pt-BR'));
+        prodRender(); toast('Produto salvo');
+      }},
+    ]);
+  d.querySelector('#fcScan').onclick = async () => { const c = await scan(); if (c) d.querySelector('#fc').value = c; };
+  if (!('BarcodeDetector' in window)) d.querySelector('#fcScan').hidden = true;
+}
+
+// ---------- leitor de código de barras ----------
+async function scan() {
+  if (!('BarcodeDetector' in window)) { toast('Leitura pela câmera disponível no Chrome do Android. Digite o código.', true); return null; }
+  let formats = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'itf'];
+  try { const sup = await BarcodeDetector.getSupportedFormats(); formats = formats.filter(f => sup.includes(f)); } catch (e) {}
+  return new Promise(async res => {
+    const d = dlg('Aponte para o código de barras', '<video playsinline muted style="width:100%;border-radius:10px;background:#000;max-height:60vh"></video>', [{ t: 'Cancelar' }]);
+    const v = d.querySelector('video'); let stream, done = false;
+    const stop = () => { done = true; stream && stream.getTracks().forEach(t => t.stop()); };
+    d.addEventListener('close', () => { if (!done) { stop(); res(null); } });
+    try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }); }
+    catch (e) { stop(); d.close(); toast('Sem acesso à câmera.', true); return res(null); }
+    v.srcObject = stream; await v.play().catch(() => {});
+    const det = new BarcodeDetector({ formats });
+    const loop = async () => {
+      if (done) return;
+      try { const r = await det.detect(v); if (r.length) { const c = r[0].rawValue; stop(); d.close(); navigator.vibrate && navigator.vibrate(80); return res(c); } } catch (e) {}
+      setTimeout(loop, 150);
+    };
+    loop();
+  });
+}
+
+// ---------- importar / exportar ----------
+function loadXLSX() {
+  if (window.XLSX) return Promise.resolve();
+  return new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'; s.onload = res; s.onerror = () => rej(new Error('Não foi possível carregar o leitor de planilhas.')); document.head.appendChild(s); });
+}
+const GUESS = {
+  descricao: /descr|produto|nome|item|mercadoria/,
+  codigo: /cod|ean|barra|gtin/,
+  preco: /pre[cç]o|valor|venda|pvp|pmc/,
+  promo: /promo|oferta|desconto/,
+};
+$('#pImport').onchange = async e => {
+  const file = e.target.files[0]; e.target.value = ''; if (!file) return;
+  try {
+    await loadXLSX();
+    const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: false, defval: '' }).filter(r => r.some(c => String(c).trim()));
+    if (!rows.length) throw new Error('Planilha vazia.');
+    // acha a linha de cabeçalho
+    let hi = 0, best = -1;
+    rows.slice(0, 10).forEach((r, i) => { const sc = r.filter(c => Object.values(GUESS).some(g => g.test(norm(c)))).length; if (sc > best) { best = sc; hi = i; } });
+    const hasHeader = best > 0;
+    const head = hasHeader ? rows[hi].map(c => String(c).trim()) : rows[0].map((_, i) => 'Coluna ' + (i + 1));
+    const data = rows.slice(hasHeader ? hi + 1 : 0);
+    const ncol = Math.max(...rows.map(r => r.length));
+    while (head.length < ncol) head.push('Coluna ' + (head.length + 1));
+    const pick = (re, avoid) => { const i = head.findIndex((h, k) => re.test(norm(h)) && !avoid.includes(k)); return i; };
+    const map = {};
+    map.codigo = pick(GUESS.codigo, []);
+    map.promo = pick(GUESS.promo, [map.codigo]);
+    map.preco = pick(GUESS.preco, [map.codigo, map.promo]);
+    map.descricao = pick(GUESS.descricao, [map.codigo, map.preco, map.promo]);
+    if (!hasHeader) { // sem cabeçalho: adivinha pelo conteúdo
+      const sample = data.slice(0, 30);
+      for (let c = 0; c < ncol; c++) {
+        const vals = sample.map(r => String(r[c] || '').trim()).filter(Boolean);
+        if (!vals.length) continue;
+        if (map.codigo < 0 && vals.every(v => /^\d{8,14}$/.test(v))) map.codigo = c;
+        else if (map.preco < 0 && vals.every(v => parsePreco(v) != null && /[\d][.,]\d{2}$/.test(v.replace(/\s/g, '')))) map.preco = c;
+        else if (map.descricao < 0 && vals.some(v => /[a-z]/i.test(v))) map.descricao = c;
+      }
+    }
+    const opt = (k, opc) => `<select data-k="${k}"><option value="-1">${opc ? '— nenhuma —' : '— escolha —'}</option>${head.map((h, i) => `<option value="${i}" ${map[k] === i ? 'selected' : ''}>${esc(h)}</option>`).join('')}</select>`;
+    const prevRows = data.slice(0, 5).map(r => `<tr>${head.map((_, i) => `<td>${esc(r[i] ?? '')}</td>`).join('')}</tr>`).join('');
+    const d = dlg('Importar produtos', `
+      <p style="margin-top:0">${data.length} linha(s) encontrada(s). Confira de qual coluna vem cada informação:</p>
+      <div class="field"><label>Descrição *</label>${opt('descricao')}</div>
+      <div class="field"><label>Preço *</label>${opt('preco')}</div>
+      <div class="field"><label>Código de barras</label>${opt('codigo', 1)}</div>
+      <div class="field"><label>Preço promocional</label>${opt('promo', 1)}</div>
+      <div class="info">Produtos com o mesmo código de barras (ou mesma descrição, se não tiver código) são atualizados. Os outros são cadastrados como novos.</div>
+      <div style="overflow:auto;margin-top:10px"><table class="prev"><tr>${head.map(h => `<th>${esc(h)}</th>`).join('')}</tr>${prevRows}</table></div>`,
+      [{ t: 'Cancelar' }, { t: 'Importar', cls: '', fn: async d => {
+        const m = {}; d.querySelectorAll('select[data-k]').forEach(s => m[s.dataset.k] = +s.value);
+        if (m.descricao < 0 || m.preco < 0) throw new Error('Escolha as colunas de descrição e preço.');
+        await importarLinhas(data, m);
+      }}]);
+  } catch (err) { toast(err.message, true); }
+};
+async function importarLinhas(data, m) {
+  await loadProdutos(true);
+  const byCode = new Map(), byDesc = new Map();
+  S.produtos.forEach(p => { if (p.codigo_barras) byCode.set(p.codigo_barras, p); byDesc.set(norm(p.descricao), p); });
+  const novos = [], upd = [], vistos = new Set(); let ignorados = 0;
+  for (const r of data) {
+    const descricao = String(r[m.descricao] ?? '').trim().slice(0, 200);
+    const preco = parsePreco(r[m.preco]);
+    if (!descricao || preco == null) { ignorados++; continue; }
+    let codigo = m.codigo >= 0 ? String(r[m.codigo] ?? '').trim().replace(/\.0+$/, '').slice(0, 40) : '';
+    const promo = m.promo >= 0 ? parsePreco(r[m.promo]) : null;
+    const key = codigo || 'd:' + norm(descricao);
+    if (vistos.has(key)) { ignorados++; continue; } vistos.add(key);
+    const ex = codigo ? byCode.get(codigo) : byDesc.get(norm(descricao));
+    const row = { filial_id: S.filial.id, descricao, preco, codigo_barras: codigo || (ex ? ex.codigo_barras : null),
+      preco_promo: promo != null ? promo : (ex ? ex.preco_promo : null),
+      promo_ativa: promo != null && promo > 0 && promo < preco ? true : (ex ? ex.promo_ativa : false),
+      categoria: ex ? ex.categoria : null };
+    if (ex) upd.push({ id: ex.id, ...row }); else novos.push(row);
+  }
+  const chunk = (a, n) => { const o = []; for (let i = 0; i < a.length; i += n) o.push(a.slice(i, i + n)); return o; };
+  for (const c of chunk(novos, 500)) { const { error } = await sb.from('produtos').insert(c); if (error) throw new Error(error.code === '23505' ? 'Há códigos de barras repetidos na planilha.' : error.message); }
+  for (const c of chunk(upd, 500)) { const { error } = await sb.from('produtos').upsert(c, { onConflict: 'id' }); if (error) throw new Error(error.message); }
+  await loadProdutos(true); prodRender();
+  toast(`Importação concluída: ${novos.length} novo(s), ${upd.length} atualizado(s)${ignorados ? `, ${ignorados} linha(s) ignorada(s)` : ''}.`);
+}
+$('#pExport').onclick = async () => {
+  try {
+    await loadXLSX();
+    const rows = S.produtos.map(p => ({ 'Descrição': p.descricao, 'Código de barras': p.codigo_barras || '', 'Preço': p.preco, 'Preço promocional': p.preco_promo ?? '', 'Promoção ativa': p.promo_ativa ? 'Sim' : 'Não', 'Categoria': p.categoria || '' }));
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), 'Produtos');
+    XLSX.writeFile(wb, `produtos-${S.filial.codigo}.xlsx`);
+  } catch (err) { toast(err.message, true); }
+};
+
+// ===================== EQUIPE =====================
+async function equipeOpen() {
+  $('#qNovoGestor').hidden = !isSup();
+  $('#qList').innerHTML = '<div class="empty">Carregando...</div>';
+  const { data, error } = await sb.from('perfis').select('id,matricula,nome,papel,permissoes,ativo,email_login,criado_em').eq('filial_id', S.filial.id).order('papel').order('nome');
+  if (error) { $('#qList').innerHTML = `<div class="empty">${esc(error.message)}</div>`; return; }
+  S.equipe = data; equipeRender();
+}
+function equipeRender() {
+  const el = $('#qList');
+  if (!S.equipe.length) { el.innerHTML = '<div class="empty">Ninguém cadastrado nesta filial.</div>'; return; }
+  el.innerHTML = S.equipe.map(u => {
+    const pode = u.id !== S.perfil.id && (isSup() || u.papel === 'colaborador');
+    const perms = u.papel === 'colaborador' ? Object.keys(PERM_LABELS).filter(k => u.permissoes?.[k]).map(k => PERM_LABELS[k]).join(', ') || 'Sem permissões' : 'Acesso completo à filial';
+    return `<div class="li" data-id="${u.id}">
+      <div class="grow"><div class="ttl">${esc(u.nome)} ${u.id === S.perfil.id ? '<span class="badge gray">você</span>' : ''}</div>
+        <div class="sub">Matrícula ${esc(u.matricula)} · <span class="badge ${u.papel === 'gestor' ? '' : 'gray'}">${u.papel}</span> ${u.ativo ? '' : '<span class="badge red">bloqueado</span>'}</div>
+        <div class="sub">${esc(perms)}${u.papel === 'gestor' && isSup() ? ' · ' + esc(u.email_login) : ''}</div></div>
+      ${pode ? '<button class="icon qmenu" title="Opções">⋯</button>' : ''}
+    </div>`;
+  }).join('');
+}
+$('#qList').onclick = e => {
+  if (!e.target.classList.contains('qmenu')) return;
+  const u = S.equipe.find(x => x.id === e.target.closest('.li').dataset.id);
+  const d = dlg(u.nome, `<div class="list">
+      ${u.papel === 'colaborador' ? '<button class="btn ghost full" data-a="perm">🔑 Permissões e nome</button>' : '<button class="btn ghost full" data-a="perm">✏️ Nome e e-mail</button>'}
+      <button class="btn ghost full" data-a="senha">🔒 Criar nova senha</button>
+      <button class="btn ghost full" data-a="ativo">${u.ativo ? '⛔ Bloquear acesso' : '✅ Desbloquear acesso'}</button>
+      <button class="btn ghost full" data-a="del" style="color:var(--red)">🗑️ Excluir tudo sobre ${u.papel === 'gestor' ? 'o gestor' : 'o colaborador'}</button>
+    </div>`, [{ t: 'Fechar' }]);
+  d.querySelectorAll('[data-a]').forEach(b => b.onclick = async () => {
+    d.close();
+    const a = b.dataset.a;
+    try {
+      if (a === 'perm') return usuarioForm(u.papel, u);
+      if (a === 'senha') return dlg('Nova senha para ' + u.nome, `<div class="field"><label>Nova senha (mínimo 8)</label><input type="text" id="ns" autocomplete="off"></div><div class="info">Passe a nova senha para a pessoa. Ela pode trocar depois em "Minha conta".</div>`,
+        [{ t: 'Cancelar' }, { t: 'Salvar', cls: '', fn: async d2 => { await callFn('admin', { acao: 'redefinir_senha', id: u.id, senha: d2.querySelector('#ns').value }); toast('Senha redefinida'); } }]);
+      if (a === 'ativo') {
+        if (u.ativo && !await confirma('Bloquear acesso', `${esc(u.nome)} não vai mais conseguir entrar até ser desbloqueado.`, 'Bloquear')) return;
+        await callFn('admin', { acao: 'atualizar_usuario', id: u.id, ativo: !u.ativo }); toast(u.ativo ? 'Acesso bloqueado' : 'Acesso liberado'); equipeOpen();
+      }
+      if (a === 'del') {
+        if (!await confirma('Excluir', `Apagar o acesso e todos os dados de <b>${esc(u.nome)}</b> (matrícula ${esc(u.matricula)})? Isso não pode ser desfeito.`, 'Excluir')) return;
+        await callFn('admin', { acao: 'excluir_usuario', id: u.id }); toast('Excluído'); equipeOpen();
+      }
+    } catch (err) { toast(err.message, true); }
+  });
+};
+$('#qNovoColab').onclick = () => usuarioForm('colaborador');
+$('#qNovoGestor').onclick = () => usuarioForm('gestor');
+function usuarioForm(papel, u) {
+  const novo = !u;
+  const permsHTML = papel === 'colaborador' ? `<label>Permissões</label>${Object.entries(PERM_LABELS).map(([k, t]) => `<label class="chk" style="margin-top:6px"><input type="checkbox" data-perm="${k}" ${u?.permissoes?.[k] ? 'checked' : ''}> ${esc(t)}</label>`).join('')}` : '';
+  dlg(novo ? (papel === 'gestor' ? 'Criar gestor' : 'Convidar colaborador') : 'Editar ' + u.nome, `
+    <div class="field"><label>Nome *</label><input type="text" id="un" maxlength="120" value="${esc(u?.nome || '')}"></div>
+    ${novo ? `<div class="field"><label>Matrícula *</label><input type="text" id="um" maxlength="30" autocapitalize="characters" autocomplete="off"></div>
+              <div class="field"><label>Senha inicial * (mínimo 8)</label><input type="text" id="us" autocomplete="off"></div>` : ''}
+    ${papel === 'gestor' && (novo || isSup()) ? `<div class="field"><label>E-mail * (para recuperar a senha)</label><input type="email" id="ue" value="${esc(u?.email_login || '')}"></div>` : ''}
+    ${permsHTML}
+    ${novo ? `<div class="info">Filial: <b>${esc(S.filial.codigo)}</b> · ${esc(S.filial.nome)}</div>` : ''}`,
+    [{ t: 'Cancelar' }, { t: 'Salvar', cls: '', fn: async d => {
+      const permissoes = {}; d.querySelectorAll('[data-perm]').forEach(c => { if (c.checked) permissoes[c.dataset.perm] = true; });
+      const nome = d.querySelector('#un').value;
+      if (novo) {
+        await callFn('admin', { acao: 'criar_usuario', papel, filial_id: S.filial.id, nome, matricula: d.querySelector('#um').value, senha: d.querySelector('#us').value, email: d.querySelector('#ue')?.value, permissoes });
+        toast(papel === 'gestor' ? 'Gestor criado' : 'Colaborador convidado');
+      } else {
+        const body = { acao: 'atualizar_usuario', id: u.id, nome };
+        if (papel === 'colaborador') body.permissoes = permissoes;
+        if (papel === 'gestor' && isSup()) body.email = d.querySelector('#ue').value;
+        await callFn('admin', body); toast('Salvo');
+      }
+      equipeOpen();
+    }}]);
+}
+
+// ===================== FILIAIS =====================
+async function loadFiliais() {
+  const { data } = await sb.from('filiais').select('*').order('codigo');
+  S.filiais = data || [];
+}
+async function filiaisOpen() { await loadFiliais(); filiaisRender(); }
+function filiaisRender() {
+  const el = $('#fList');
+  if (!S.filiais.length) { el.innerHTML = '<div class="empty">Nenhuma filial cadastrada. Crie a primeira.</div>'; return; }
+  el.innerHTML = S.filiais.map(f => `<div class="li" data-id="${f.id}">
+    <div class="grow"><div class="ttl">${esc(f.codigo)} · ${esc(f.nome)}</div><div class="sub">${f.ativo ? '<span class="badge">ativa</span>' : '<span class="badge red">desativada</span>'}</div></div>
+    <button class="btn sm ghost fopen">Abrir</button><button class="icon fedit">✏️</button></div>`).join('');
+}
+$('#fList').onclick = async e => {
+  const li = e.target.closest('.li'); if (!li) return;
+  const f = S.filiais.find(x => x.id === li.dataset.id);
+  if (e.target.classList.contains('fopen')) { S.filial = f; ls.set('filialSel', f.id); ls.set('tab', 'equipe'); showMain(); }
+  if (e.target.classList.contains('fedit')) filialForm(f);
+};
+$('#fNova').onclick = () => filialForm();
+function filialForm(f) {
+  dlg(f ? 'Editar filial' : 'Nova filial', `
+    <div class="field"><label>Código *</label><input type="text" id="fco" maxlength="10" autocapitalize="characters" value="${esc(f?.codigo || '')}" ${f ? 'disabled' : ''}></div>
+    <div class="field"><label>Nome *</label><input type="text" id="fno" maxlength="120" value="${esc(f?.nome || '')}"></div>
+    ${f ? `<label class="chk"><input type="checkbox" id="fat" ${f.ativo ? 'checked' : ''}> Filial ativa (desativada = ninguém da filial consegue entrar)</label>` : ''}`,
+    [{ t: 'Cancelar' }, { t: 'Salvar', cls: '', fn: async d => {
+      if (f) await callFn('admin', { acao: 'atualizar_filial', id: f.id, nome: d.querySelector('#fno').value, ativo: d.querySelector('#fat').checked });
+      else await callFn('admin', { acao: 'criar_filial', codigo: d.querySelector('#fco').value, nome: d.querySelector('#fno').value });
+      toast('Filial salva');
+      await loadFiliais();
+      if (!S.filial && S.filiais.length) S.filial = S.filiais[0];
+      if (S.filial) S.filial = S.filiais.find(x => x.id === S.filial.id) || S.filial;
+      showMain(); openTab('filiais');
+    }}]);
+}
+
+// ===================== CONTA =====================
+function contaOpen() {
+  const p = S.perfil;
+  $('#cInfo').innerHTML = `<div class="sub" style="line-height:1.8">
+    <b>${esc(p.nome)}</b><br>Matrícula: ${esc(p.matricula)}<br>
+    ${S.filial && !isSup() ? `Filial: ${esc(S.filial.codigo)} · ${esc(S.filial.nome)}<br>` : ''}
+    Perfil: ${({suporte: 'Suporte', gestor: 'Gestor', colaborador: 'Colaborador'})[p.papel]}
+    ${p.papel !== 'colaborador' ? `<br>E-mail de recuperação: ${esc(p.email_login)}` : ''}</div>`;
+}
+$('#cSalvar').onclick = async () => {
+  const a = $('#cS1').value, b = $('#cS2').value;
+  if (a.length < 8) return toast('A senha precisa ter pelo menos 8 caracteres.', true);
+  if (a !== b) return toast('As senhas não conferem.', true);
+  const { error } = await sb.auth.updateUser({ password: a });
+  if (error) return toast(error.message, true);
+  $('#cS1').value = $('#cS2').value = ''; toast('Senha alterada!');
+};
+$('#cSair').onclick = sair;
+
+// ===================== ETIQUETAS =====================
+const PRESETS = [
+  { n: '5 × 4 cm', w: 5, h: 4 }, { n: '7 × 5 cm', w: 7, h: 5 }, { n: '10 × 7 cm', w: 10, h: 7 },
+  { n: '15 × 10 cm', w: 15, h: 10 }, { n: '19 × 13,5 cm (2 por folha)', w: 19, h: 13.5 },
+];
+const F = '"Arial Black","Arial Bold","Helvetica Neue",Arial,sans-serif';
+const C = { red: '#e30613', green: '#1a8a3a', dgreen: '#0f5e27', yellow: '#ffd000', orange: '#f7a600', black: '#111' };
+const etqDefault = () => ({ w: 5, h: 4, gap: 0, cut: false, fill: false, showDesc: false, brandTop: 'Rede de Farmácias', brandName: 'Trevo', logo: null, items: [] });
+let E = etqDefault();
+const etqKey = () => 'etq_' + (S.filial ? S.filial.id : 'x');
+function etqLoad() { E = Object.assign(etqDefault(), ls.get(etqKey(), {})); }
+function etqSave() { ls.set(etqKey(), E); }
+
+const mctx = document.createElement('canvas').getContext('2d');
+function tw(text, weight, italic) { mctx.font = `${italic ? 'italic ' : ''}${weight} 100px ${F}`; return mctx.measureText(text).width / 100; }
+function fmtPrice(v) {
+  const n = parsePreco(v); if (n == null) return '0,00';
+  return brl(n);
+}
+function heart() { return 'M0,0 C-0.55,-0.32 -0.62,-0.82 -0.3,-0.97 C-0.12,-1.05 0,-0.9 0,-0.78 C0,-0.9 0.12,-1.05 0.3,-0.97 C0.62,-0.82 0.55,-0.32 0,0 Z'; }
+function heartAt(cx, cy, rot, sc) {
+  const a = rot * Math.PI / 180, co = Math.cos(a), si = Math.sin(a);
+  return heart().replace(/(-?[\d.]+),(-?[\d.]+)/g, (_, x, y) => { x = +x * sc; y = +y * sc; return (cx + x * co - y * si).toFixed(2) + ',' + (cy + x * si + y * co).toFixed(2); });
+}
+function cloverSVG(cx, cy, cs) {
+  const hs = cs * 0.5; let leaves = '';
+  [20, 110, 200, 290].forEach(rot => { leaves += `<path d="${heartAt(cx, cy, rot, hs)}"/>`; });
+  const stem = `M${cx},${cy} Q${cx + cs * 0.05},${cy + cs * 0.35} ${cx - cs * 0.12},${cy + cs * 0.5}`;
+  return `<g stroke="#fff" stroke-width="${cs * 0.12}" stroke-linejoin="round" fill="#fff"><path d="${stem}" fill="none" stroke-linecap="round"/>${leaves}</g>
+    <path d="${stem}" fill="none" stroke="${C.green}" stroke-width="${cs * 0.07}" stroke-linecap="round"/>
+    <g fill="${C.green}" stroke="${C.dgreen}" stroke-width="${cs * 0.015}">${leaves}</g>
+    <circle cx="${cx}" cy="${cy}" r="${cs * 0.04}" fill="${C.dgreen}"/>`;
+}
+function brandSVG(lx, ly, LH, top, name) {
+  let s = cloverSVG(lx + LH / 2, ly + LH / 2, LH);
+  const tx = lx + LH * 1.0, topS = LH * 0.24, nameS = LH * 0.62;
+  const nameW = tw(name, 900, true) * nameS, topW = tw(top, 700, true) * topS;
+  s += `<text x="${tx + nameS * 0.12}" y="${ly + LH * 0.27}" font-family='${F}' font-weight="700" font-style="italic" font-size="${topS}" fill="${C.green}" stroke="#fff" stroke-width="${topS * 0.18}" paint-order="stroke" stroke-linejoin="round">${esc(top)}</text>`;
+  s += `<text x="${tx}" y="${ly + LH * 0.80}" font-family='${F}' font-weight="900" font-style="italic" font-size="${nameS}" fill="${C.red}" stroke="#fff" stroke-width="${nameS * 0.12}" paint-order="stroke" stroke-linejoin="round">${esc(name)}</text>`;
+  const sw = Math.max(nameW, topW) * 1.05, sy = ly + LH * 0.93;
+  s += `<path d="M${tx - LH * 0.05},${sy} Q${tx + sw * 0.5},${sy - LH * 0.16} ${tx + sw},${sy - LH * 0.07} Q${tx + sw * 0.5},${sy - LH * 0.09} ${tx - LH * 0.05},${sy} Z" fill="${C.green}" stroke="#fff" stroke-width="${LH * 0.02}"/>`;
+  return s;
+}
+function logoSVG(w) { const LH = 100; return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-8 -8 360 120" width="${w}">${brandSVG(0, 0, LH, 'Rede de Farmácias', 'Trevo')}</svg>`; }
+
+function tagSVG(item, wmm, hmm, uid) {
+  const W = wmm * 10, H = hmm * 10, m = Math.min(W, H);
+  const b = m * 0.035, r = m * 0.10, id = 't' + uid;
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${wmm}mm" height="${hmm}mm">`;
+  s += `<defs><clipPath id="${id}c"><rect x="${b}" y="${b}" width="${W - 2 * b}" height="${H - 2 * b}" rx="${Math.max(r - b * 0.7, 1)}"/></clipPath></defs>`;
+  s += `<rect x="0" y="0" width="${W}" height="${H}" rx="${r}" fill="${C.red}"/>`;
+  const yL = H * 0.42, yC = H * 0.14, yR = H * 0.30, ty = m * 0.03;
+  const bL = H * 0.80, bC = H * 0.97, bR = H * 0.74, tg = m * 0.04;
+  s += `<g clip-path="url(#${id}c)"><rect x="0" y="0" width="${W}" height="${H}" fill="${C.red}"/>`;
+  s += `<path d="M0,${yL} Q${W / 2},${yC} ${W},${yR} L${W},${H} L0,${H} Z" fill="${C.yellow}"/>`;
+  s += `<path d="M0,${yL + ty} Q${W / 2},${yC + ty} ${W},${yR + ty} L${W},${bR} Q${W / 2},${bC} 0,${bL} Z" fill="#fff"/>`;
+  s += `<path d="M0,${bL + tg} Q${W / 2},${bC + tg} ${W},${bR + tg} L${W},${H} L0,${H} Z" fill="${C.green}"/></g>`;
+  const O = { x: W - m * 0.30, y: H * 0.37 };
+  [-80, -56, -32].forEach(a => {
+    const ra = a * Math.PI / 180, u = { x: Math.cos(ra), y: Math.sin(ra) }, n = { x: -u.y, y: u.x };
+    const d1 = m * 0.13, d2 = m * 0.27, w1 = m * 0.012, w2 = m * 0.035;
+    const p = [[O.x + u.x * d1 + n.x * w1, O.y + u.y * d1 + n.y * w1], [O.x + u.x * d2 + n.x * w2, O.y + u.y * d2 + n.y * w2], [O.x + u.x * d2 - n.x * w2, O.y + u.y * d2 - n.y * w2], [O.x + u.x * d1 - n.x * w1, O.y + u.y * d1 - n.y * w1]];
+    s += `<polygon points="${p.map(q => q.map(v => v.toFixed(1)).join(',')).join(' ')}" fill="${C.yellow}" stroke="${C.orange}" stroke-width="${m * 0.006}" stroke-linejoin="round"/>`;
+  });
+  const LH = Math.min(H * 0.31, W * 0.14), lx = b + m * 0.035, ly = b + m * 0.025;
+  if (E.logo) s += `<image href="${E.logo}" x="${lx}" y="${ly}" width="${Math.min(W * 0.72, LH * 3.6)}" height="${LH}" preserveAspectRatio="xMinYMid meet"/>`;
+  else s += brandSVG(lx, ly, LH, E.brandTop, E.brandName);
+  const sy2 = H * 0.865;
+  s += `<path d="M${W * 0.48},${sy2 + m * 0.01} Q${W * 0.70},${sy2 - m * 0.03} ${W * 0.87},${sy2 - m * 0.10} Q${W * 0.70},${sy2 - m * 0.06} ${W * 0.48},${sy2 + m * 0.01} Z" fill="${C.red}" stroke="${C.red}" stroke-width="${m * 0.025}" stroke-linejoin="round"/>`;
+  let z1 = ly + LH + m * 0.03; const z2 = H * 0.835;
+  const x0 = b + m * 0.05, x1 = W - b - m * 0.05, availW = x1 - x0;
+  const showName = (item.promo || E.showDesc) && item.name;
+  const showOld = item.promo && item.old;
+  if (showName || showOld) {
+    const zh0 = z2 - z1;
+    if (showName) {
+      const ns0 = zh0 * 0.17, txt = item.name.toUpperCase(), nW = tw(txt, 900, false), ns = Math.min(ns0, availW * 0.98 / nW);
+      s += `<text x="${W / 2}" y="${z1 + ns0 * 0.82}" text-anchor="middle" font-family='${F}' font-weight="900" font-size="${ns}" fill="${C.dgreen}" stroke="#fff" stroke-width="${ns * 0.15}" paint-order="stroke">${esc(txt)}</text>`;
+      z1 += ns0 * 1.05;
+    }
+    if (showOld) {
+      const os0 = zh0 * 0.15, oldTxt = 'De R$ ' + fmtPrice(item.old), porTxt = ' por';
+      const oW = tw(oldTxt, 800, false), pW = tw(porTxt, 800, false), os = Math.min(os0, availW * 0.98 / (oW + pW));
+      const total = (oW + pW) * os, sx = W / 2 - total / 2, by = z1 + os0 * 0.82;
+      s += `<text x="${sx}" y="${by}" font-family='${F}' font-weight="800" font-size="${os}" fill="#444" stroke="#fff" stroke-width="${os * 0.15}" paint-order="stroke">${esc(oldTxt)}<tspan fill="${C.red}">${porTxt}</tspan></text>`;
+      s += `<line x1="${sx + tw('De ', 800, false) * os}" y1="${by - os * 0.32}" x2="${sx + oW * os}" y2="${by - os * 0.32}" stroke="${C.red}" stroke-width="${os * 0.12}" stroke-linecap="round"/>`;
+      z1 += os0 * 1.05;
+    }
+  }
+  const zh = z2 - z1, price = fmtPrice(item.price);
+  const kRs = tw('R$', 900, false) * 0.46, kP = tw(price, 900, false), kG = 0.05;
+  const ps = Math.min(zh * 0.97 / 0.73, availW / (kRs + kG + kP));
+  const totalW = (kRs + kG + kP) * ps, gx = x0 + (availW - totalW) / 2;
+  const base = z2 - zh * 0.02 - (zh - ps * 0.73) / 2, rsS = ps * 0.46, rsBase = base - (ps * 0.73 - rsS * 0.73) / 2;
+  s += `<text x="${gx}" y="${rsBase}" font-family='${F}' font-weight="900" font-size="${rsS}" fill="${C.green}" stroke="#fff" stroke-width="${rsS * 0.16}" paint-order="stroke" stroke-linejoin="round">R$</text>`;
+  const px = gx + (kRs + kG) * ps;
+  s += `<text x="${px}" y="${base}" font-family='${F}' font-weight="900" font-size="${ps}" fill="${C.black}" stroke="#555" stroke-width="${ps * 0.13}" paint-order="stroke" stroke-linejoin="round">${price}</text>`;
+  s += `<text x="${px}" y="${base}" font-family='${F}' font-weight="900" font-size="${ps}" fill="${C.black}" stroke="#fff" stroke-width="${ps * 0.09}" paint-order="stroke" stroke-linejoin="round">${price}</text>`;
+  return s + `</svg>`;
+}
+
+function etqLayout() {
+  const w = E.w * 10, h = E.h * 10, g = +E.gap || 0, M = 5;
+  const calc = (PW, PH) => { const c = Math.max(0, Math.floor((PW - 2 * M + g) / (w + g))), r = Math.max(0, Math.floor((PH - 2 * M + g) / (h + g))); return { c, r, n: c * r, PW, PH }; };
+  const p = calc(210, 297), l = calc(297, 210);
+  return l.n > p.n ? Object.assign(l, { land: true }) : Object.assign(p, { land: false });
+}
+function etqAddProduto(p, save = true) {
+  const promo = !!(p.promo_ativa && p.preco_promo != null);
+  E.items.push({ price: brl(promo ? p.preco_promo : p.preco), qty: 1, promo, name: p.descricao, old: promo ? brl(p.preco) : '', pid: p.id });
+  if (save) etqSave();
+}
+let uid = 0;
+function etqRender() {
+  etqSave();
+  const L = etqLayout();
+  $('#pageStyle').textContent = `@media print{@page{size:A4 ${L.land ? 'landscape' : 'portrait'};margin:0}}`;
+  let tags = [];
+  E.items.forEach(it => { const q = Math.max(0, parseInt(it.qty) || 0); for (let i = 0; i < q; i++) tags.push(it); });
+  if (E.fill && tags.length && L.n) { const base = tags.slice(); let i = 0; while (tags.length % L.n) tags.push(base[i++ % base.length]); }
+  $('#fitInfo').textContent = !L.n ? '⚠️ Esse tamanho não cabe numa folha A4.' :
+    `Cabem ${L.n} por folha A4 (${L.c} × ${L.r}${L.land ? ', folha deitada' : ''}). Total: ${tags.length} etiqueta(s) em ${tags.length ? Math.ceil(tags.length / L.n) : 0} folha(s).`;
+  const first = E.items[0] || { price: '0,00' };
+  $('#eOne').innerHTML = tagSVG(first, E.w * 10, E.h * 10, 'p' + (uid++)).replace(/width="[\d.]+mm" height="[\d.]+mm"/, `style="width:${Math.min(100, E.w * 14)}%;max-width:420px"`);
+  const pages = $('#pages'); pages.innerHTML = '';
+  if (!L.n || !tags.length) { if (!tags.length) pages.innerHTML = '<div class="empty">Adicione etiquetas do cadastro ou digite um preço.</div>'; return; }
+  const w = E.w * 10, h = E.h * 10, g = +E.gap || 0;
+  const ox = (L.PW - (L.c * w + (L.c - 1) * g)) / 2, oy = (L.PH - (L.r * h + (L.r - 1) * g)) / 2;
+  for (let pi = 0; pi < Math.ceil(tags.length / L.n); pi++) {
+    const wrap = document.createElement('div'); wrap.className = 'pagewrap';
+    const page = document.createElement('div'); page.className = 'page' + (L.land ? ' land' : '');
+    let html = '';
+    for (let k = 0; k < L.n; k++) {
+      const t = tags[pi * L.n + k]; if (!t) break;
+      const x = ox + (k % L.c) * (w + g), y = oy + Math.floor(k / L.c) * (h + g);
+      html += `<div class="tag" style="left:${x}mm;top:${y}mm;width:${w}mm;height:${h}mm">${tagSVG(t, w, h, uid++)}</div>`;
+      if (E.cut) html += `<div class="cut" style="left:${x}mm;top:${y}mm;width:${w}mm;height:${h}mm"></div>`;
+    }
+    page.innerHTML = html; wrap.appendChild(page); pages.appendChild(wrap);
+  }
+  scalePages();
+}
+function scalePages() {
+  const avail = $('#pages').clientWidth || 300;
+  document.querySelectorAll('#pages .pagewrap').forEach(wr => {
+    const pg = wr.firstChild, pw = pg.offsetWidth, ph = pg.offsetHeight, sc = Math.min(1, (avail - 4) / pw);
+    pg.style.transform = `scale(${sc})`; wr.style.width = pw * sc + 'px'; wr.style.height = ph * sc + 'px';
+  });
+}
+window.addEventListener('resize', () => { if (S.tab === 'etiquetas') scalePages(); });
+function etqPresets() {
+  const el = $('#presets'); el.innerHTML = '';
+  PRESETS.forEach(p => {
+    const b = document.createElement('button'); b.className = 'chip' + (p.w == E.w && p.h == E.h ? ' on' : ''); b.textContent = p.n;
+    b.onclick = () => { E.w = p.w; E.h = p.h; etqSync(); etqPresets(); etqRender(); }; el.appendChild(b);
+  });
+}
+function etqSync() {
+  $('#ew').value = E.w; $('#eh').value = E.h; $('#egap').value = E.gap; $('#eCut').checked = E.cut; $('#eFill').checked = E.fill; $('#eShowDesc').checked = E.showDesc;
+  $('#eBrandTop').value = E.brandTop; $('#eBrandName').value = E.brandName;
+  $('#eLogoPrev').hidden = !E.logo; $('#eLogoClear').hidden = !E.logo; if (E.logo) $('#eLogoPrev').src = E.logo;
+}
+function etqItems() {
+  const el = $('#eItems'); el.innerHTML = '';
+  E.items.forEach((it, i) => {
+    const d = document.createElement('div'); d.className = 'item' + (it.promo ? ' promoOn' : '');
+    d.innerHTML = `<div class="top">
+        <div class="f" style="flex:2"><label>${it.pid ? esc(it.name).slice(0, 40) : 'Preço (R$)'}</label><input type="text" inputmode="decimal" data-k="price" value="${esc(it.price)}" placeholder="46,99"></div>
+        <div class="f" style="max-width:76px"><label>Qtd.</label><input type="number" min="0" inputmode="numeric" data-k="qty" value="${esc(it.qty)}"></div>
+        <button class="icon" data-del title="Remover">✕</button></div>
+      <div><button class="pill${it.promo ? ' on' : ''}">🏷️ Promoção</button></div>
+      <div class="promo">
+        <div class="f" style="flex:2"><label>Nome do produto</label><input type="text" data-k="name" value="${esc(it.name)}"></div>
+        <div class="f"><label>De R$</label><input type="text" inputmode="decimal" data-k="old" value="${esc(it.old)}" placeholder="59,99"></div>
+      </div>`;
+    d.querySelectorAll('input').forEach(inp => inp.addEventListener('input', () => { it[inp.dataset.k] = inp.value; etqRender(); }));
+    d.querySelector('[data-del]').onclick = () => { E.items.splice(i, 1); etqItems(); etqRender(); };
+    d.querySelector('.pill').onclick = () => { it.promo = !it.promo; etqItems(); etqRender(); };
+    el.appendChild(d);
+  });
+}
+async function etqOpen() {
+  etqLoad();
+  // atualiza preços de itens vindos do cadastro
+  try { await loadProdutos(); } catch (e) {}
+  E.items.forEach(it => { if (!it.pid) return; const p = S.produtos.find(x => x.id === it.pid); if (!p) return;
+    const promo = !!(p.promo_ativa && p.preco_promo != null); it.name = p.descricao; it.price = brl(promo ? p.preco_promo : p.preco); it.promo = promo; it.old = promo ? brl(p.preco) : ''; });
+  etqSync(); etqPresets(); etqItems(); etqRender();
+}
+$('#eAdd').onclick = () => { E.items.push({ price: '', qty: 1, promo: false, name: '', old: '' }); etqItems(); etqRender(); const ins = document.querySelectorAll('#eItems input[data-k=price]'); ins[ins.length - 1].focus(); };
+$('#eClear').onclick = async () => { if (E.items.length && await confirma('Limpar etiquetas', 'Remover todas as etiquetas da lista?', 'Limpar')) { E.items = []; etqItems(); etqRender(); } };
+$('#eFromCad').onclick = async () => {
+  await loadProdutos();
+  const d = dlg('Adicionar do cadastro', `<div class="row"><div class="f" style="flex:3"><input type="search" id="kb" placeholder="Buscar produto"></div>${'BarcodeDetector' in window ? '<button type="button" class="icon" id="ks">📷</button>' : ''}</div><div class="list" id="kl" style="margin-top:10px"></div>`, [{ t: 'Pronto' }]);
+  const kl = d.querySelector('#kl'), kb = d.querySelector('#kb');
+  const render = () => { const list = filtraProdutos(kb.value).slice(0, 40);
+    kl.innerHTML = list.length ? list.map(p => `<div class="li" data-id="${p.id}"><div class="grow"><div class="ttl">${esc(p.descricao)}</div><div class="sub">${esc(p.codigo_barras || '')}</div></div><div class="price">${precoHTML(p)}</div><button class="icon kadd">＋</button></div>`).join('') : '<div class="empty">Nenhum produto.</div>'; };
+  kb.oninput = render; render();
+  kl.onclick = e => { const li = e.target.closest('.li'); if (!li) return; const p = S.produtos.find(x => x.id === li.dataset.id); etqAddProduto(p); etqItems(); etqRender(); toast('Adicionado: ' + p.descricao); };
+  const ks = d.querySelector('#ks'); if (ks) ks.onclick = async () => { const c = await scan(); if (!c) return; const p = S.produtos.find(x => x.codigo_barras === c); if (p) { etqAddProduto(p); etqItems(); etqRender(); toast('Adicionado: ' + p.descricao); } else { kb.value = c; render(); toast('Código não cadastrado.', true); } };
+};
+[['ew', 'w', 1], ['eh', 'h', 1], ['egap', 'gap', 0]].forEach(([id, k, min]) => $('#' + id).addEventListener('input', e => { const v = parseFloat(String(e.target.value).replace(',', '.')); if (!isNaN(v) && v >= min) { E[k] = v; etqPresets(); etqRender(); } }));
+$('#eCut').onchange = e => { E.cut = e.target.checked; etqRender(); };
+$('#eFill').onchange = e => { E.fill = e.target.checked; etqRender(); };
+$('#eShowDesc').onchange = e => { E.showDesc = e.target.checked; etqRender(); };
+$('#eBrandTop').oninput = e => { E.brandTop = e.target.value; etqRender(); };
+$('#eBrandName').oninput = e => { E.brandName = e.target.value; etqRender(); };
+$('#eLogo').onchange = e => { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => { E.logo = r.result; etqSync(); etqRender(); }; r.readAsDataURL(f); };
+$('#eLogoClear').onclick = () => { E.logo = null; etqSync(); etqRender(); };
+$('#ePrint').onclick = () => {
+  if (!document.querySelector('#pages .page')) return toast('Nada para imprimir.', true);
+  const pa = $('#printArea'); pa.innerHTML = '';
+  document.querySelectorAll('#pages .page').forEach(p => { const c = p.cloneNode(true); c.style.transform = 'none'; pa.appendChild(c); });
+  window.print();
+};
+
+// ===================== INÍCIO =====================
+sb.auth.onAuthStateChange(ev => {
+  if (ev === 'PASSWORD_RECOVERY') setTimeout(telaNovaSenha, 300);
+});
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session && !location.hash.includes('type=recovery')) await enter(); else showLogin();
+})();
+</script>
+</body>
+</html>
