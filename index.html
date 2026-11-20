@@ -121,6 +121,22 @@ table.prev td,table.prev th{border-bottom:1px solid var(--line);padding:4px;text
 .dia .lanc:first-of-type{border-top:none}
 .dia .lanc .grow{flex:1}
 .ok{color:var(--green)}
+.rel h3{font-size:15px;margin:0 0 2px}
+.rel .sub{font-size:12px;color:var(--mut);margin-bottom:10px}
+.brow{display:grid;grid-template-columns:44px 1fr;align-items:center;gap:8px;margin:5px 0;cursor:pointer}
+.brow .lb{font-size:12px;color:var(--mut);font-weight:700;text-align:right}
+.btrack{position:relative;height:16px}
+.bar{position:absolute;left:0;height:100%;border-radius:0 4px 4px 0;min-width:2px}
+.bar.g{background:#1a7f37}.bar.b{background:#3a78c9}
+.brow.duo .btrack{height:22px}.brow.duo .bar{height:9px}.brow.duo .bar.b{top:11px}
+.mtick{position:absolute;top:-3px;bottom:-3px;width:2px;background:#3a78c9;border-radius:1px}
+.blab{position:absolute;top:50%;transform:translateY(-50%);font-size:11px;color:var(--ink);font-weight:700;white-space:nowrap;padding-left:4px}
+.legenda{display:flex;gap:14px;font-size:12px;color:var(--mut);margin-bottom:8px;flex-wrap:wrap}
+.legenda i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+#relTip{position:fixed;z-index:60;background:#111;color:#fff;font-size:12px;padding:6px 9px;border-radius:8px;pointer-events:none;display:none;max-width:240px}
+table.tv{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
+table.tv td,table.tv th{padding:4px;border-bottom:1px solid var(--line);text-align:right}
+table.tv td:first-child,table.tv th:first-child{text-align:left}
 @media print{
   @page{size:A4;margin:0}
   body{background:#fff}
@@ -174,6 +190,20 @@ table.prev td,table.prev th{border-bottom:1px solid var(--line);padding:4px;text
       <button class="btn red full" id="mLancar" style="margin-bottom:12px">+ Lançar venda</button>
       <div class="card"><h2>Lançamentos do mês</h2><div id="mLista"></div></div>
     </div>
+
+    <!-- RELATÓRIOS -->
+    <div id="tab-relatorios" class="tab rel" hidden>
+      <div class="card">
+        <div class="chips" id="rPer"></div>
+        <div class="row" style="margin-top:10px"><button class="btn sm ghost" id="rExcel">⬇️ Exportar Excel do período</button></div>
+      </div>
+      <div class="card" id="rResumo"></div>
+      <div class="card" id="rHora"></div>
+      <div class="card" id="rSemDia"></div>
+      <div class="card" id="rSemana"></div>
+      <div class="card" id="rMeses"></div>
+    </div>
+    <div id="relTip"></div>
 
     <!-- ETIQUETAS -->
     <div id="tab-etiquetas" class="tab" hidden>
@@ -503,6 +533,7 @@ async function enter() {
 // ===================== SHELL =====================
 const TABS = [
   { id: 'painel', t: '📊 Painel', ok: () => S.filial && (perm('painel_ver') || perm('vendas_lancar')) },
+  { id: 'relatorios', t: '📈 Relatórios', ok: () => S.filial && (isGestor() || isSup()) },
   { id: 'etiquetas', t: '🏷️ Etiquetas', ok: () => S.filial && perm('etiquetas') },
   { id: 'produtos', t: '📦 Produtos', ok: () => S.filial && (perm('produtos_ver') || perm('produtos_editar')) },
   { id: 'equipe', t: '👥 Equipe', ok: () => S.filial && (isGestor() || isSup()) },
@@ -537,7 +568,7 @@ function openTab(id) {
   S.tab = id; ls.set('tab', id);
   document.querySelectorAll('.tab').forEach(t => t.hidden = t.id !== 'tab-' + id);
   document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.id === id));
-  ({ painel: painelOpen, etiquetas: etqOpen, produtos: prodOpen, equipe: equipeOpen, filiais: filiaisOpen, config: configOpen, conta: contaOpen })[id]();
+  ({ painel: painelOpen, relatorios: relOpen, etiquetas: etqOpen, produtos: prodOpen, equipe: equipeOpen, filiais: filiaisOpen, config: configOpen, conta: contaOpen })[id]();
   window.scrollTo(0, 0);
 }
 
@@ -1158,6 +1189,149 @@ function vendaForm(v) {
   });
   setTimeout(() => d.querySelector('#vv').focus(), 100);
 }
+
+// ===================== RELATÓRIOS (gestor e suporte) =====================
+const REL_PER = [['mes', 'Este mês'], ['ant', 'Mês passado'], ['3m', '3 meses'], ['6m', '6 meses'], ['12m', '12 meses']];
+const R = { per: 'mes', vendas: [], metas: [], nomes: {} };
+const isoDe = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const brl0 = n => 'R$ ' + Number(n || 0).toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+function relIntervalo() {
+  const m = mesAtual();
+  if (R.per === 'mes') return [m + '-01', hojeISO()];
+  if (R.per === 'ant') { const a = mesSomar(m, -1); return [a + '-01', `${a}-${pad2(diasNoMes(a))}`]; }
+  const n = { '3m': 3, '6m': 6, '12m': 12 }[R.per];
+  return [mesSomar(m, -(n - 1)) + '-01', hojeISO()];
+}
+async function relOpen() {
+  R.per = ls.get('relPer', 'mes');
+  $('#rPer').innerHTML = REL_PER.map(([k, t]) => `<button class="chip ${k === R.per ? 'on' : ''}" data-k="${k}">${t}</button>`).join('');
+  ['#rResumo', '#rHora', '#rSemDia', '#rSemana', '#rMeses'].forEach(id => $(id).innerHTML = '');
+  $('#rResumo').innerHTML = '<div class="empty">Carregando...</div>';
+  const ini = mesSomar(mesAtual(), -12) + '-01';
+  let all = [], from = 0;
+  while (true) {
+    const { data, error } = await sb.from('vendas').select('data,hora,valor,lancado_por,obs').eq('filial_id', S.filial.id).gte('data', ini).order('data').range(from, from + 999);
+    if (error) { $('#rResumo').innerHTML = `<div class="empty">${esc(error.message)}</div>`; return; }
+    all = all.concat(data); if (data.length < 1000) break; from += 1000;
+  }
+  const [rm, rp] = await Promise.all([
+    sb.from('metas').select('mes,valor').eq('filial_id', S.filial.id).eq('tipo', 'filial').gte('mes', ini),
+    sb.from('perfis').select('id,nome').eq('filial_id', S.filial.id),
+  ]);
+  R.vendas = all; R.metas = rm.data || []; R.nomes = {}; (rp.data || []).forEach(u => R.nomes[u.id] = u.nome);
+  relRender();
+}
+$('#rPer').onclick = e => { const k = e.target.dataset.k; if (!k) return; R.per = k; ls.set('relPer', k); document.querySelectorAll('#rPer .chip').forEach(c => c.classList.toggle('on', c.dataset.k === k)); relRender(); };
+// mesma regra do painel: "total do dia" vale no lugar da soma das horas
+function relDias(vendas) {
+  const d = {};
+  vendas.forEach(v => { const x = d[v.data] || (d[v.data] = { total: null, horas: 0, porHora: {} });
+    if (v.hora == null) x.total = Number(v.valor); else { x.horas += Number(v.valor); x.porHora[v.hora] = (x.porHora[v.hora] || 0) + Number(v.valor); } });
+  Object.values(d).forEach(x => x.valor = x.total != null ? x.total : x.horas);
+  return d;
+}
+function barras(rows, opt = {}) {
+  // rows: [{lb, v, tip, v2?, tip2?, tick?}] — eixo único em R$, começando do zero
+  const max = Math.max(1, ...rows.map(r => Math.max(r.v || 0, r.v2 || 0, r.tick || 0)));
+  const imax = rows.reduce((b, r, i) => (r.v || 0) > (rows[b].v || 0) ? i : b, 0);
+  return rows.map((r, i) => {
+    const w = (r.v || 0) / max * 100, w2 = (r.v2 || 0) / max * 100;
+    const dentro = w > 70;   // rótulo dentro da barra (texto branco) ou logo depois dela (texto escuro)
+    const lab = opt.rotular === 'todos' || (opt.rotular !== 'nenhum' && i === imax && r.v)
+      ? `<span class="blab" style="${dentro ? `right:${100 - w}%;color:#fff;padding-right:6px` : `left:${w}%`}">${brl0(r.v)}</span>` : '';
+    return `<div class="brow ${opt.duo ? 'duo' : ''}" data-tip="${esc(r.tip)}">
+      <span class="lb">${esc(r.lb)}</span>
+      <div class="btrack"><span class="bar g" style="width:${w}%"></span>${opt.duo ? `<span class="bar b" style="width:${w2}%"></span>` : ''}
+      ${r.tick ? `<span class="mtick" style="left:calc(${r.tick / max * 100}% - 1px)"></span>` : ''}${lab}</div></div>`;
+  }).join('');
+}
+function tabela(cab, linhas) {
+  return `<details style="margin-top:8px"><summary class="info" style="cursor:pointer">Ver tabela</summary><table class="tv"><tr>${cab.map(c => `<th>${c}</th>`).join('')}</tr>${linhas.map(l => `<tr>${l.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')}</table></details>`;
+}
+function relRender() {
+  const [ini, fim] = relIntervalo();
+  const vend = R.vendas.filter(v => v.data >= ini && v.data <= fim);
+  const dias = relDias(vend), ks = Object.keys(dias).sort();
+  const total = ks.reduce((s, k) => s + dias[k].valor, 0);
+  const media = ks.length ? total / ks.length : 0;
+  const melhorDia = ks.reduce((b, k) => !b || dias[k].valor > dias[b].valor ? k : b, null);
+  // por hora: média nos dias que têm lançamento por hora
+  const diasHora = ks.filter(k => Object.keys(dias[k].porHora).length);
+  const somaH = {}; diasHora.forEach(k => Object.entries(dias[k].porHora).forEach(([h, v]) => somaH[h] = (somaH[h] || 0) + v));
+  const horas = Object.keys(somaH).map(Number).sort((a, b) => a - b);
+  const melhorHora = horas.reduce((b, h) => b == null || somaH[h] > somaH[b] ? h : b, null);
+  const nomePer = REL_PER.find(p => p[0] === R.per)[1].toLowerCase();
+
+  $('#rResumo').innerHTML = `<h3>Resumo · ${nomePer}</h3><div class="sub">${dataBR(ini)}/${ini.slice(0, 4)} a ${dataBR(fim)}/${fim.slice(0, 4)}</div>
+    <div class="kpis">
+      <div class="kpi big"><small>Total vendido</small><b>R$ ${brl(total)}</b></div>
+      <div class="kpi"><small>Média por dia</small><b>R$ ${brl(media)}</b></div>
+      <div class="kpi"><small>Dias com venda</small><b>${ks.length}</b></div>
+      <div class="kpi"><small>Melhor dia</small><b>${melhorDia ? dataBR(melhorDia) : '—'}</b><small style="text-transform:none">${melhorDia ? 'R$ ' + brl(dias[melhorDia].valor) : ''}</small></div>
+      <div class="kpi"><small>Melhor horário</small><b>${melhorHora != null ? pad2(melhorHora) + 'h' : '—'}</b><small style="text-transform:none">${melhorHora != null ? 'média R$ ' + brl(somaH[melhorHora] / diasHora.length) : ''}</small></div>
+    </div>`;
+
+  $('#rHora').innerHTML = `<h3>Vendas por hora do dia</h3><div class="sub">Média por dia${diasHora.length ? ` · ${diasHora.length} dia(s) com lançamento por hora` : ''}</div>` +
+    (horas.length ? barras(horas.map(h => ({ lb: pad2(h) + 'h', v: somaH[h] / diasHora.length, tip: `${pad2(h)}h: média de R$ ${brl(somaH[h] / diasHora.length)} (total R$ ${brl(somaH[h])})` })))
+      + tabela(['Hora', 'Média/dia', 'Total'], horas.map(h => [pad2(h) + 'h', brl(somaH[h] / diasHora.length), brl(somaH[h])]))
+      : '<div class="empty">Sem lançamentos por hora neste período. Dias lançados só com "total do dia" não entram aqui.</div>');
+
+  const somaS = Array(7).fill(0), contS = Array(7).fill(0);
+  ks.forEach(k => { const w = new Date(k + 'T12:00:00').getDay(); somaS[w] += dias[k].valor; contS[w]++; });
+  const ordemS = [1, 2, 3, 4, 5, 6, 0];
+  $('#rSemDia').innerHTML = `<h3>Vendas por dia da semana</h3><div class="sub">Média por dia com venda</div>` +
+    (ks.length ? barras(ordemS.map(w => ({ lb: SEMANA[w], v: contS[w] ? somaS[w] / contS[w] : 0, tip: `${SEMANA[w]}: média R$ ${brl(contS[w] ? somaS[w] / contS[w] : 0)} em ${contS[w]} dia(s)` })))
+      + tabela(['Dia', 'Média', 'Dias'], ordemS.map(w => [SEMANA[w], brl(contS[w] ? somaS[w] / contS[w] : 0), contS[w]]))
+      : '<div class="empty">Sem vendas neste período.</div>');
+
+  // esta semana x semana passada (sempre relativo a hoje)
+  const diasAll = relDias(R.vendas), hoje = new Date(hojeISO() + 'T12:00:00');
+  const seg = new Date(hoje); seg.setDate(hoje.getDate() - ((hoje.getDay() + 6) % 7));
+  const linhasS = [], tabS = []; let tA = 0, tP = 0, tPmesmos = 0;
+  for (let i = 0; i < 7; i++) {
+    const a = new Date(seg); a.setDate(seg.getDate() + i); const p2 = new Date(a); p2.setDate(a.getDate() - 7);
+    const va = a <= hoje ? (diasAll[isoDe(a)]?.valor || 0) : null, vp = diasAll[isoDe(p2)]?.valor || 0;
+    tA += va || 0; tP += vp; if (va != null) tPmesmos += vp;
+    linhasS.push({ lb: SEMANA[a.getDay()], v: va || 0, v2: vp, tip: `${SEMANA[a.getDay()]} ${dataBR(isoDe(a))}: ${va == null ? 'ainda não chegou' : 'R$ ' + brl(va)} · semana passada (${dataBR(isoDe(p2))}): R$ ${brl(vp)}` });
+    tabS.push([`${SEMANA[a.getDay()]} ${dataBR(isoDe(a))}`, va == null ? '—' : brl(va), brl(vp)]);
+  }
+  const dif = tPmesmos ? (tA - tPmesmos) / tPmesmos * 100 : null;
+  $('#rSemana').innerHTML = `<h3>Esta semana × semana passada</h3>
+    <div class="sub">Até hoje: <b>R$ ${brl(tA)}</b> · mesmos dias da semana passada: R$ ${brl(tPmesmos)}${dif != null ? ` (<b>${dif >= 0 ? '+' : ''}${dif.toFixed(0)}%</b>)` : ''} · semana passada inteira: R$ ${brl(tP)}</div>
+    <div class="legenda"><span><i style="background:#1a7f37"></i>Esta semana</span><span><i style="background:#3a78c9"></i>Semana passada</span></div>
+    ${barras(linhasS, { duo: true, rotular: 'nenhum' })}${tabela(['Dia', 'Esta semana', 'Semana passada'], tabS)}`;
+
+  // últimos 12 meses x meta
+  const mesesL = []; for (let i = 11; i >= 0; i--) mesesL.push(mesSomar(mesAtual(), -i));
+  const metaDe = m => { const x = R.metas.find(t => t.mes.slice(0, 7) === m); return x ? Number(x.valor) : null; };
+  const vendMes = m => Object.keys(diasAll).filter(k => k.startsWith(m)).reduce((s, k) => s + diasAll[k].valor, 0);
+  const rowsM = mesesL.map(m => { const v = vendMes(m), mt = metaDe(m), [a, b] = m.split('-').map(Number);
+    return { m, lb: MESES[b - 1].slice(0, 3) + '/' + String(a).slice(2), v, tick: mt, tip: `${MESES[b - 1]} ${a}: R$ ${brl(v)}${mt ? ` · meta R$ ${brl(mt)} (${(v / mt * 100).toFixed(0)}%)` : ' · sem meta'}` }; });
+  $('#rMeses').innerHTML = `<h3>Últimos 12 meses × meta</h3><div class="sub">Barra = vendido · traço azul = meta do mês</div>
+    <div class="legenda"><span><i style="background:#1a7f37"></i>Vendido</span><span><i style="background:#3a78c9;width:3px"></i>Meta</span></div>
+    ${barras(rowsM)}${tabela(['Mês', 'Vendido', 'Meta', '%'], rowsM.map(r => [r.lb, brl(r.v), r.tick ? brl(r.tick) : '—', r.tick ? (r.v / r.tick * 100).toFixed(0) + '%' : '—']))}`;
+}
+// dica ao tocar/passar o dedo nas barras
+(() => {
+  const tip = $('#relTip'); let tt;
+  const show = (el, x, y) => { tip.textContent = el.dataset.tip; tip.style.display = 'block'; const w = tip.offsetWidth; tip.style.left = Math.max(8, Math.min(innerWidth - w - 8, x - w / 2)) + 'px'; tip.style.top = Math.max(8, y - 44) + 'px'; clearTimeout(tt); tt = setTimeout(() => tip.style.display = 'none', 2500); };
+  $('#tab-relatorios').addEventListener('pointermove', e => { const r = e.target.closest('.brow'); if (r && e.pointerType === 'mouse') show(r, e.clientX, e.clientY); else if (e.pointerType === 'mouse') tip.style.display = 'none'; });
+  $('#tab-relatorios').addEventListener('click', e => { const r = e.target.closest('.brow'); if (r) show(r, e.clientX, e.clientY); });
+})();
+$('#rExcel').onclick = async () => {
+  try {
+    await loadXLSX();
+    const [ini, fim] = relIntervalo();
+    const vend = R.vendas.filter(v => v.data >= ini && v.data <= fim);
+    const dias = relDias(vend);
+    const l1 = vend.map(v => ({ 'Data': v.data.split('-').reverse().join('/'), 'Hora': v.hora == null ? 'Total do dia' : pad2(v.hora) + 'h', 'Valor': Number(v.valor), 'Lançado por': R.nomes[v.lancado_por] || '', 'Obs.': v.obs || '' }));
+    const l2 = Object.keys(dias).sort().map(k => ({ 'Data': k.split('-').reverse().join('/'), 'Dia': SEMANA[new Date(k + 'T12:00:00').getDay()], 'Vendido': dias[k].valor }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(l2), 'Por dia');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(l1), 'Lançamentos');
+    XLSX.writeFile(wb, `vendas-${S.filial.codigo}-${ini}-a-${fim}.xlsx`);
+  } catch (e) { toast(e.message, true); }
+};
 
 // ===================== EQUIPE =====================
 async function equipeOpen() {
