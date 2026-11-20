@@ -118,29 +118,13 @@ table.prev td,table.prev th{border-bottom:1px solid var(--line);padding:4px;text
     <div class="logo" id="loginLogo"></div>
     <h1>Acesso restrito</h1>
     <form id="fLogin" autocomplete="on">
-      <div class="field"><label>Código da filial</label><input type="text" id="lFilial" autocomplete="organization" autocapitalize="characters" inputmode="text" placeholder="Ex.: 0001"></div>
+      <div class="field"><label>Código da filial</label><input type="text" id="lFilial" autocomplete="organization" autocapitalize="characters" inputmode="text" placeholder="Ex.: 0001" required></div>
       <div class="field"><label>Matrícula</label><input type="text" id="lMat" autocomplete="username" autocapitalize="characters" required></div>
       <div class="field"><label>Senha</label><input type="password" id="lSenha" autocomplete="current-password" required></div>
       <button class="btn red full" id="lBtn" type="submit">Entrar</button>
     </form>
     <button class="link" id="lEsqueci" type="button">Esqueci minha senha (gestor)</button>
     <div class="info" style="text-align:center">Colaborador: peça ao seu gestor para redefinir a senha.</div>
-  </div>
-</section>
-
-<!-- =============== PRIMEIRO ACESSO =============== -->
-<section id="vSetup" hidden style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(160deg,var(--green),#0f5e27)">
-  <div class="loginbox">
-    <div class="logo" id="setupLogo"></div>
-    <h1>Primeiro acesso</h1>
-    <p class="info" style="text-align:center;margin-top:-6px">Crie o acesso de administrador (Suporte). Esta tela só aparece uma vez.</p>
-    <form id="fSetup">
-      <div class="field"><label>Seu nome</label><input type="text" id="sNome" autocomplete="name" required></div>
-      <div class="field"><label>E-mail (para recuperar a senha)</label><input type="email" id="sEmail" autocomplete="email" required></div>
-      <div class="field"><label>Senha (mínimo 8 caracteres)</label><input type="password" id="sS1" autocomplete="new-password" required></div>
-      <div class="field"><label>Repita a senha</label><input type="password" id="sS2" autocomplete="new-password" required></div>
-      <button class="btn full" id="sBtn" type="submit">Criar administrador</button>
-    </form>
   </div>
 </section>
 
@@ -304,7 +288,7 @@ function dlg(title, html, buttons) {
   const act = d.querySelector('.dact');
   (buttons || [{t: 'Fechar'}]).forEach(b => {
     const el = document.createElement('button'); el.type = 'button';
-    el.className = 'btn sm ' + (b.cls || 'ghost'); el.textContent = b.t;
+    el.className = 'btn sm ' + (b.cls ?? 'ghost'); el.textContent = b.t;
     el.onclick = async () => {
       if (!b.fn) { d.close(); return; }
       el.disabled = true;
@@ -355,7 +339,7 @@ const perm = p => S.perfil && (S.perfil.papel !== 'colaborador' || !!(S.perfil.p
 
 // ===================== AUTH =====================
 function showLogin() {
-  $('#vMain').hidden = true; $('#vSetup').hidden = true; $('#vLogin').hidden = false;
+  $('#vMain').hidden = true; $('#vLogin').hidden = false;
   $('#lFilial').value = ls.get('ultFilial', '');
   $('#loginLogo').innerHTML = logoSVG(200);
 }
@@ -426,7 +410,7 @@ const TABS = [
   { id: 'conta', t: '👤 Minha conta', ok: () => true },
 ];
 function showMain() {
-  $('#vLogin').hidden = true; $('#vSetup').hidden = true; $('#vMain').hidden = false;
+  $('#vLogin').hidden = true; $('#vMain').hidden = false;
   const p = S.perfil;
   $('#hFilial').textContent = S.filial ? `${S.filial.codigo} · ${S.filial.nome}` : 'Suporte';
   $('#hUser').textContent = `${p.nome} · ${({suporte: 'Suporte', gestor: 'Gestor', colaborador: 'Colaborador'})[p.papel]}`;
@@ -1027,27 +1011,45 @@ $('#ePrint').onclick = () => {
   window.print();
 };
 
-// ===================== PRIMEIRO ACESSO =====================
-function showSetup() {
-  $('#vMain').hidden = true; $('#vLogin').hidden = true; $('#vSetup').hidden = false;
-  $('#setupLogo').innerHTML = logoSVG(200);
+// ===================== PAINEL DO SUPORTE (3 toques no 🍀) =====================
+let toques = 0, toqueT;
+$('#loginLogo').addEventListener('click', () => {
+  toques++; clearTimeout(toqueT); toqueT = setTimeout(() => toques = 0, 1500);
+  if (toques >= 3) { toques = 0; painelSuporte(); }
+});
+async function painelSuporte() {
+  let temAdmin = true;
+  try { temAdmin = await rpc('sistema_tem_admin'); } catch (e) { /* se falhar, mostra só o login */ }
+  if (!temAdmin) {
+    dlg('Cadastrar Suporte', `
+      <div class="info" style="margin-top:0;margin-bottom:10px">Só é possível cadastrar um Suporte. Depois disso este cadastro some.</div>
+      <div class="field"><label>Seu nome</label><input type="text" id="sNome" autocomplete="name"></div>
+      <div class="field"><label>E-mail</label><input type="email" id="sEmail" autocomplete="email"></div>
+      <div class="field"><label>Senha (mínimo 8)</label><input type="password" id="sS1" autocomplete="new-password"></div>
+      <div class="field"><label>Repita a senha</label><input type="password" id="sS2" autocomplete="new-password"></div>`,
+      [{ t: 'Cancelar' }, { t: 'Cadastrar', cls: '', fn: async d => {
+        const nome = d.querySelector('#sNome').value.trim(), email = d.querySelector('#sEmail').value.trim();
+        const a = d.querySelector('#sS1').value, b = d.querySelector('#sS2').value;
+        if (a.length < 8) throw new Error('A senha precisa ter pelo menos 8 caracteres.');
+        if (a !== b) throw new Error('As senhas não conferem.');
+        await rpc('primeiro_acesso', { p_nome: nome, p_email: email, p_senha: a });
+        const { error } = await sb.auth.signInWithPassword({ email, password: a });
+        if (error) throw new Error('Suporte criado, mas o login falhou. Tente entrar pelo painel.');
+        toast('Suporte cadastrado!'); await enter();
+      }}]);
+    return;
+  }
+  dlg('Acesso do Suporte', `
+    <div class="field"><label>E-mail</label><input type="email" id="spEmail" autocomplete="username"></div>
+    <div class="field"><label>Senha</label><input type="password" id="spSenha" autocomplete="current-password"></div>`,
+    [{ t: 'Cancelar' }, { t: 'Entrar', cls: 'red', fn: async d => {
+      const email = d.querySelector('#spEmail').value.trim(), password = d.querySelector('#spSenha').value;
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) throw new Error(error.status === 429 ? 'Muitas tentativas. Aguarde alguns minutos.' : 'E-mail ou senha inválidos.');
+      await enter();
+      if (!S.perfil || S.perfil.papel !== 'suporte') { await sb.auth.signOut(); S.perfil = null; showLogin(); throw new Error('Acesso não autorizado.'); }
+    }}]);
 }
-$('#fSetup').onsubmit = async e => {
-  e.preventDefault();
-  const btn = $('#sBtn'); btn.disabled = true;
-  try {
-    const nome = $('#sNome').value.trim(), email = $('#sEmail').value.trim(), a = $('#sS1').value, b = $('#sS2').value;
-    if (a.length < 8) throw new Error('A senha precisa ter pelo menos 8 caracteres.');
-    if (a !== b) throw new Error('As senhas não conferem.');
-    await rpc('primeiro_acesso', { p_nome: nome, p_email: email, p_senha: a });
-    const { error } = await sb.auth.signInWithPassword({ email, password: a });
-    if (error) throw new Error('Administrador criado. Entre com: filial em branco, matrícula SUPORTE e sua senha.');
-    ls.set('ultFilial', '');
-    toast('Administrador criado! Seu login: filial em branco + matrícula SUPORTE.');
-    await enter();
-  } catch (err) { toast(err.message, true); }
-  btn.disabled = false;
-};
 
 // ===================== INÍCIO =====================
 sb.auth.onAuthStateChange(ev => {
@@ -1056,7 +1058,6 @@ sb.auth.onAuthStateChange(ev => {
 (async () => {
   const { data: { session } } = await sb.auth.getSession();
   if (session && !location.hash.includes('type=recovery')) return enter();
-  try { if (!(await rpc('sistema_tem_admin'))) return showSetup(); } catch (e) { toast(e.message, true); }
   showLogin();
 })();
 </script>
