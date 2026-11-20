@@ -105,6 +105,22 @@ table.prev td,table.prev th{border-bottom:1px solid var(--line);padding:4px;text
 #toast.show{opacity:1}
 #toast.err{background:var(--red)}
 #printArea{display:none}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.kpi{background:#f9fafb;border:1.5px solid var(--line);border-radius:12px;padding:10px}
+.kpi small{display:block;font-size:11px;color:var(--mut);font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+.kpi b{display:block;font-size:19px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi.big{grid-column:1/-1}
+.kpi.big b{font-size:26px}
+.barra{height:14px;background:#eef0f3;border-radius:999px;overflow:hidden;margin-top:8px}
+.barra i{display:block;height:100%;background:linear-gradient(90deg,var(--green),#2fb35a);border-radius:999px;transition:width .4s}
+.mesnav{display:flex;align-items:center;gap:8px}
+.mesnav b{flex:1;text-align:center;font-size:17px;text-transform:capitalize}
+.dia{border:1.5px solid var(--line);border-radius:12px;padding:8px 10px;margin-bottom:8px}
+.dia .cab{display:flex;justify-content:space-between;align-items:center;font-weight:800}
+.dia .lanc{display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px dashed var(--line);font-size:14px}
+.dia .lanc:first-of-type{border-top:none}
+.dia .lanc .grow{flex:1}
+.ok{color:var(--green)}
 @media print{
   @page{size:A4;margin:0}
   body{background:#fff}
@@ -144,6 +160,21 @@ table.prev td,table.prev th{border-bottom:1px solid var(--line);padding:4px;text
   </header>
   <nav class="tabs" id="tabs"></nav>
   <main>
+    <!-- PAINEL DO MÊS -->
+    <div id="tab-painel" class="tab" hidden>
+      <div class="card">
+        <div class="mesnav">
+          <button class="icon" id="mAnt" title="Mês anterior">◀</button>
+          <b id="mNome">—</b>
+          <button class="icon" id="mProx" title="Próximo mês">▶</button>
+        </div>
+        <div style="text-align:center;margin-top:6px"><button class="link" id="mAtual" style="margin:0 auto" hidden>Voltar para o mês atual</button></div>
+      </div>
+      <div class="card" id="mResumo"></div>
+      <button class="btn red full" id="mLancar" style="margin-bottom:12px">+ Lançar venda</button>
+      <div class="card"><h2>Lançamentos do mês</h2><div id="mLista"></div></div>
+    </div>
+
     <!-- ETIQUETAS -->
     <div id="tab-etiquetas" class="tab" hidden>
       <div class="etq-grid">
@@ -323,6 +354,8 @@ const PERM_LABELS = {
   etiquetas: 'Gerar etiquetas',
   produtos_ver: 'Ver produtos e preços',
   produtos_editar: 'Cadastrar e editar produtos/preços',
+  painel_ver: 'Ver painel do mês e metas',
+  vendas_lancar: 'Lançar vendas',
 };
 
 // ===================== UTIL =====================
@@ -469,6 +502,7 @@ async function enter() {
 
 // ===================== SHELL =====================
 const TABS = [
+  { id: 'painel', t: '📊 Painel', ok: () => S.filial && (perm('painel_ver') || perm('vendas_lancar')) },
   { id: 'etiquetas', t: '🏷️ Etiquetas', ok: () => S.filial && perm('etiquetas') },
   { id: 'produtos', t: '📦 Produtos', ok: () => S.filial && (perm('produtos_ver') || perm('produtos_editar')) },
   { id: 'equipe', t: '👥 Equipe', ok: () => S.filial && (isGestor() || isSup()) },
@@ -503,7 +537,7 @@ function openTab(id) {
   S.tab = id; ls.set('tab', id);
   document.querySelectorAll('.tab').forEach(t => t.hidden = t.id !== 'tab-' + id);
   document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.id === id));
-  ({ etiquetas: etqOpen, produtos: prodOpen, equipe: equipeOpen, filiais: filiaisOpen, config: configOpen, conta: contaOpen })[id]();
+  ({ painel: painelOpen, etiquetas: etqOpen, produtos: prodOpen, equipe: equipeOpen, filiais: filiaisOpen, config: configOpen, conta: contaOpen })[id]();
   window.scrollTo(0, 0);
 }
 
@@ -959,6 +993,171 @@ $('#pExport').onclick = async () => {
     XLSX.writeFile(wb, `produtos-${S.filial.codigo}.xlsx`);
   } catch (err) { toast(err.message, true); }
 };
+
+// ===================== PAINEL DO MÊS =====================
+const MESES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+const pad2 = n => String(n).padStart(2, '0');
+const hojeISO = () => { const d = new Date(); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; };
+const mesAtual = () => hojeISO().slice(0, 7);
+const P = { mes: null, meta: null, vendas: [], nomes: {} };
+function mesSomar(m, n) { let [a, b] = m.split('-').map(Number); b += n; while (b > 12) { b -= 12; a++; } while (b < 1) { b += 12; a--; } return `${a}-${pad2(b)}`; }
+function diasNoMes(m) { const [a, b] = m.split('-').map(Number); return new Date(a, b, 0).getDate(); }
+const podeMeta = () => isGestor() || isSup();
+const podeEditar = v => isGestor() || isSup() || (perm('vendas_lancar') && v.lancado_por === S.perfil.id);
+const dataBR = iso => { const [a, b, c] = iso.split('-'); return `${c}/${b}`; };
+const SEMANA = ['dom','seg','ter','qua','qui','sex','sáb'];
+
+async function painelOpen() {
+  // o painel fica no mês escolhido até o usuário trocar
+  P.mes = ls.get('painelMes_' + S.filial.id, mesAtual());
+  $('#mLancar').hidden = !perm('vendas_lancar');
+  await painelCarregar();
+}
+async function painelCarregar() {
+  ls.set('painelMes_' + S.filial.id, P.mes);
+  const [a, b] = P.mes.split('-').map(Number);
+  $('#mNome').textContent = `${MESES[b - 1]} ${a}`;
+  $('#mAtual').hidden = P.mes === mesAtual();
+  $('#mResumo').innerHTML = '<div class="empty">Carregando...</div>';
+  const ini = P.mes + '-01', fim = `${P.mes}-${pad2(diasNoMes(P.mes))}`;
+  const [rm, rv, rp] = await Promise.all([
+    sb.from('metas').select('*').eq('filial_id', S.filial.id).eq('mes', ini).eq('tipo', 'filial').maybeSingle(),
+    sb.from('vendas').select('*').eq('filial_id', S.filial.id).gte('data', ini).lte('data', fim).order('data', { ascending: false }).order('hora', { ascending: false, nullsFirst: true }),
+    sb.from('perfis').select('id,nome').eq('filial_id', S.filial.id),
+  ]);
+  if (rm.error || rv.error) { $('#mResumo').innerHTML = `<div class="empty">${esc((rm.error || rv.error).message)}</div>`; return; }
+  P.meta = rm.data; P.vendas = rv.data || [];
+  P.nomes = {}; (rp.data || []).forEach(u => P.nomes[u.id] = u.nome); P.nomes[S.perfil.id] = S.perfil.nome;
+  painelRender();
+}
+// valor de cada dia: se tiver "total do dia", vale ele; senão, soma das horas
+function totaisPorDia() {
+  const dias = {};
+  P.vendas.forEach(v => {
+    const d = dias[v.data] || (dias[v.data] = { total: null, horas: 0, itens: [] });
+    d.itens.push(v);
+    if (v.hora == null) d.total = Number(v.valor); else d.horas += Number(v.valor);
+  });
+  Object.values(dias).forEach(d => d.valor = d.total != null ? d.total : d.horas);
+  return dias;
+}
+function painelRender() {
+  const dias = totaisPorDia();
+  const vendido = Object.values(dias).reduce((s, d) => s + d.valor, 0);
+  const meta = P.meta ? Number(P.meta.valor) : null;
+  const nDias = diasNoMes(P.mes), atual = P.mes === mesAtual(), passado = P.mes < mesAtual();
+  const hoje = hojeISO(), diaHoje = atual ? +hoje.slice(8) : (passado ? nDias : 0);
+  const restam = atual ? nDias - diaHoje + 1 : (passado ? 0 : nDias);   // conta o dia de hoje
+  const falta = meta != null ? Math.max(0, meta - vendido) : null;
+  const pct = meta ? Math.min(999, vendido / meta * 100) : null;
+  const porDia = falta != null && restam > 0 ? falta / restam : null;
+  const diasComVenda = Object.keys(dias).length;
+  const media = diasComVenda ? vendido / diasComVenda : 0;
+  const vHoje = dias[hoje] ? dias[hoje].valor : 0;
+  let h = '';
+  if (meta == null) {
+    h += `<div class="info" style="margin-top:0">${podeMeta() ? 'A meta deste mês ainda não foi definida.' : 'A meta deste mês ainda não foi definida pelo gestor.'}</div>`;
+    if (podeMeta()) h += `<button class="btn full" id="mMetaBtn" style="margin-top:10px">🎯 Definir meta do mês</button>`;
+    h += `<div class="kpis" style="margin-top:10px"><div class="kpi big"><small>Vendido no mês</small><b>R$ ${brl(vendido)}</b></div></div>`;
+  } else {
+    const batida = vendido >= meta;
+    h += `<div class="row" style="align-items:center;margin-bottom:8px"><div class="f"><small class="info" style="margin:0">META DO MÊS</small><div style="font-size:20px;font-weight:900">R$ ${brl(meta)}</div></div>
+      ${podeMeta() ? '<button class="btn sm ghost" id="mMetaBtn">✏️ Alterar</button>' : ''}</div>
+      <div class="barra"><i style="width:${Math.min(100, pct)}%"></i></div>
+      <div class="info" style="text-align:right;margin-top:4px"><b>${pct.toFixed(1).replace('.', ',')}%</b> da meta</div>
+      <div class="kpis" style="margin-top:10px">
+        <div class="kpi big"><small>${batida ? '🎉 Meta batida!' : 'Falta para a meta'}</small><b class="${batida ? 'ok' : ''}">${batida ? '+ R$ ' + brl(vendido - meta) + ' acima' : 'R$ ' + brl(falta)}</b></div>
+        <div class="kpi"><small>Vendido no mês</small><b>R$ ${brl(vendido)}</b></div>
+        <div class="kpi"><small>${atual ? 'Precisa por dia' : 'Média por dia'}</small><b>${atual ? (batida ? '—' : 'R$ ' + brl(porDia)) : 'R$ ' + brl(media)}</b></div>
+        <div class="kpi"><small>${atual ? 'Dias restantes' : passado ? 'Mês encerrado' : 'Dias no mês'}</small><b>${atual ? restam + (restam === 1 ? ' (hoje)' : ' (com hoje)') : passado ? '✔' : nDias}</b></div>
+        <div class="kpi"><small>${atual ? 'Vendido hoje' : 'Dias com venda'}</small><b>${atual ? 'R$ ' + brl(vHoje) : diasComVenda}</b></div>
+      </div>`;
+    if (atual && !batida && media) h += `<div class="info">Média até agora: R$ ${brl(media)} por dia com venda.</div>`;
+  }
+  $('#mResumo').innerHTML = h;
+  const mb = $('#mMetaBtn'); if (mb) mb.onclick = metaForm;
+  // lista por dia
+  const ks = Object.keys(dias).sort().reverse();
+  $('#mLista').innerHTML = ks.length ? ks.map(k => {
+    const d = dias[k], dt = new Date(k + 'T12:00:00');
+    const obsTotal = d.total != null && d.horas ? `<div class="info" style="margin:2px 0 4px">Este dia tem "total do dia": ele vale no lugar da soma das horas (R$ ${brl(d.horas)}).</div>` : '';
+    return `<div class="dia"><div class="cab"><span>${dataBR(k)} <small class="info" style="font-weight:600">${SEMANA[dt.getDay()]}</small></span><span>R$ ${brl(d.valor)}</span></div>${obsTotal}
+      ${d.itens.map(v => `<div class="lanc" data-id="${v.id}"><span class="grow">${v.hora == null ? '<b>Total do dia</b>' : pad2(v.hora) + 'h'}
+        <small class="info" style="display:block;margin:0">${esc(P.nomes[v.lancado_por] || '—')}${v.obs ? ' · ' + esc(v.obs) : ''}</small></span>
+        <b>R$ ${brl(v.valor)}</b>${podeEditar(v) ? '<button class="icon medit" title="Editar">✏️</button>' : ''}</div>`).join('')}</div>`;
+  }).join('') : '<div class="empty">Nenhuma venda lançada neste mês.</div>';
+}
+$('#mAnt').onclick = () => { P.mes = mesSomar(P.mes, -1); painelCarregar(); };
+$('#mProx').onclick = () => { P.mes = mesSomar(P.mes, 1); painelCarregar(); };
+$('#mAtual').onclick = () => { P.mes = mesAtual(); painelCarregar(); };
+$('#mLista').onclick = e => { if (!e.target.classList.contains('medit')) return; const v = P.vendas.find(x => x.id === e.target.closest('.lanc').dataset.id); vendaForm(v); };
+$('#mLancar').onclick = () => vendaForm(null);
+
+function metaForm() {
+  const [a, b] = P.mes.split('-').map(Number);
+  dlg(`Meta de ${MESES[b - 1]} ${a}`, `<div class="field"><label>Meta de vendas (R$)</label><input type="text" id="mtv" inputmode="decimal" value="${P.meta ? brl(P.meta.valor) : ''}" placeholder="Ex.: 150.000,00"></div>`,
+    [...(P.meta ? [{ t: 'Remover meta', fn: async () => {
+      if (!await confirma('Remover meta', 'Remover a meta deste mês?', 'Remover')) return false;
+      const { error } = await sb.from('metas').delete().eq('id', P.meta.id); if (error) throw new Error(error.message);
+      toast('Meta removida'); painelCarregar(); } }] : []),
+     { t: 'Cancelar' },
+     { t: 'Salvar', cls: '', fn: async d => {
+      const valor = parsePreco(d.querySelector('#mtv').value);
+      if (valor == null || valor <= 0) throw new Error('Informe o valor da meta.');
+      const q = P.meta ? sb.from('metas').update({ valor }).eq('id', P.meta.id) : sb.from('metas').insert({ filial_id: S.filial.id, mes: P.mes + '-01', tipo: 'filial', valor });
+      const { error } = await q; if (error) throw new Error(error.message);
+      toast('Meta salva'); painelCarregar();
+    }}]);
+}
+function vendaForm(v) {
+  const novo = !v;
+  const agora = new Date();
+  const data0 = v ? v.data : (P.mes === mesAtual() ? hojeISO() : P.mes + '-01');
+  const porHora = v ? v.hora != null : true;
+  const hora0 = v && v.hora != null ? v.hora : Math.max(0, agora.getHours() - (agora.getMinutes() < 30 ? 1 : 0));
+  const d = dlg(novo ? 'Lançar venda' : 'Editar lançamento', `
+    <div class="field"><label>Data</label><input type="date" id="vd" value="${data0}" max="${hojeISO()}" style="width:100%;padding:11px;border:1.5px solid var(--line);border-radius:10px;font-size:16px"></div>
+    <div class="chips" style="margin-bottom:12px"><button type="button" class="chip ${porHora ? 'on' : ''}" data-t="h">Por hora</button><button type="button" class="chip ${porHora ? '' : 'on'}" data-t="d">Total do dia</button></div>
+    <div class="field" id="vhBox" ${porHora ? '' : 'hidden'}><label>Hora</label><select id="vh">${Array.from({ length: 24 }, (_, i) => `<option value="${i}" ${i === hora0 ? 'selected' : ''}>${pad2(i)}h – ${pad2(i)}h59</option>`).join('')}</select></div>
+    <div class="field"><label>Valor vendido (R$)</label><input type="text" id="vv" inputmode="decimal" value="${v ? brl(v.valor) : ''}" placeholder="0,00"></div>
+    <div class="field"><label>Observação (opcional)</label><input type="text" id="vo" maxlength="200" value="${esc(v?.obs || '')}"></div>
+    <div class="info" id="vInfo" style="margin-top:0"></div>`,
+    [...(novo ? [] : [{ t: '🗑️ Excluir', fn: async () => {
+      if (!await confirma('Excluir lançamento', `Excluir o lançamento de R$ ${brl(v.valor)}?`, 'Excluir')) return false;
+      const { error } = await sb.from('vendas').delete().eq('id', v.id); if (error) throw new Error(error.message);
+      toast('Lançamento excluído'); painelCarregar(); } }]),
+     { t: 'Cancelar' },
+     { t: 'Salvar', cls: 'red', fn: async dd => {
+      const data = dd.querySelector('#vd').value, tipoH = dd.querySelector('.chip.on').dataset.t === 'h';
+      const hora = tipoH ? +dd.querySelector('#vh').value : null, valor = parsePreco(dd.querySelector('#vv').value);
+      const obs = dd.querySelector('#vo').value.trim() || null;
+      if (!data) throw new Error('Informe a data.');
+      if (valor == null) throw new Error('Informe o valor.');
+      const row = { filial_id: S.filial.id, data, hora, valor, obs };
+      let { error } = novo ? await sb.from('vendas').insert(row) : await sb.from('vendas').update(row).eq('id', v.id);
+      if (error && error.code === '23505') {
+        // já existe lançamento nesse horário/dia: oferece substituir
+        let q = sb.from('vendas').select('*').eq('filial_id', S.filial.id).eq('data', data);
+        q = hora == null ? q.is('hora', null) : q.eq('hora', hora);
+        const { data: ex } = await q.maybeSingle();
+        if (!ex) throw new Error(error.message);
+        const quem = tipoH ? pad2(hora) + 'h' : 'o total do dia';
+        if (!podeEditar(ex)) throw new Error(`Já existe lançamento para ${quem} em ${dataBR(data)} (R$ ${brl(ex.valor)}), feito por outra pessoa. Peça ao gestor para alterar.`);
+        if (!await confirma('Já lançado', `Já existe ${quem} em ${dataBR(data)}: <b>R$ ${brl(ex.valor)}</b>.<br>Substituir por <b>R$ ${brl(valor)}</b>?`, 'Substituir', '')) return false;
+        const r2 = await sb.from('vendas').update({ valor, obs }).eq('id', ex.id);
+        if (r2.error) throw new Error(r2.error.message);
+        if (!novo) await sb.from('vendas').delete().eq('id', v.id);
+        error = null;
+      }
+      if (error) throw new Error(error.message);
+      toast('Venda lançada'); P.mes = data.slice(0, 7); painelCarregar();
+    }}]);
+  d.querySelectorAll('.chip[data-t]').forEach(c => c.onclick = () => {
+    d.querySelectorAll('.chip[data-t]').forEach(x => x.classList.toggle('on', x === c));
+    d.querySelector('#vhBox').hidden = c.dataset.t !== 'h';
+  });
+  setTimeout(() => d.querySelector('#vv').focus(), 100);
+}
 
 // ===================== EQUIPE =====================
 async function equipeOpen() {
