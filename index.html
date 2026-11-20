@@ -160,6 +160,8 @@ table.prev td,table.prev th{border-bottom:1px solid var(--line);padding:4px;text
             <div id="eItems"></div>
             <button class="btn ghost full" id="eAdd" style="border-style:dashed;color:var(--green);border-color:var(--green)">+ Digitar preço avulso</button>
             <label class="chk"><input type="checkbox" id="eShowDesc"> Mostrar a descrição do produto em todas as etiquetas</label>
+            <div class="field" style="margin-top:10px"><label>Código EAN na etiqueta</label>
+              <select id="eEan"><option value="off">Não mostrar</option><option value="num">Só o número</option><option value="barras">Barras + número</option></select></div>
             <label class="chk"><input type="checkbox" id="eFill"> Completar a folha repetindo as etiquetas</label>
           </div>
           <div class="card">
@@ -506,7 +508,7 @@ function prodForm(p) {
   const novo = !p.id;
   const d = dlg(novo ? 'Novo produto' : 'Editar produto', `
     <div class="field"><label>Descrição *</label><input type="text" id="fd" maxlength="200" value="${esc(p.descricao || '')}"></div>
-    <div class="field"><label>Código de barras</label><div class="row"><div class="f"><input type="text" id="fc" inputmode="numeric" maxlength="40" value="${esc(p.codigo_barras || '')}"></div><button type="button" class="icon" id="fcScan">📷</button></div></div>
+    <div class="field"><label>Código de barras</label><div class="row"><div class="f"><input type="text" id="fc" inputmode="numeric" maxlength="40" value="${esc(p.codigo_barras || '')}"></div><button type="button" class="icon" id="fcScan" title="Ler com a câmera">📷</button><button type="button" class="icon" id="fcBusca" title="Buscar descrição pelo código">🔎</button></div><div class="info" id="fcInfo" style="margin-top:4px"></div></div>
     <div class="row">
       <div class="f field"><label>Preço (R$) *</label><input type="text" id="fp" inputmode="decimal" value="${p.preco != null ? brl(p.preco) : ''}"></div>
       <div class="f field"><label>Preço promocional</label><input type="text" id="fpp" inputmode="decimal" value="${p.preco_promo != null ? brl(p.preco_promo) : ''}"></div>
@@ -542,8 +544,47 @@ function prodForm(p) {
         prodRender(); toast('Produto salvo');
       }},
     ]);
-  d.querySelector('#fcScan').onclick = async () => { const c = await scan(); if (c) d.querySelector('#fc').value = c; };
+  const fc = d.querySelector('#fc'), fd = d.querySelector('#fd'), fi = d.querySelector('#fcInfo');
+  const buscar = async (manual) => {
+    const code = fc.value.trim(); if (code.replace(/\D/g, '').length < 8) { if (manual) fi.textContent = 'Digite ou leia o código de barras primeiro.'; return; }
+    const ja = S.produtos.find(x => x.codigo_barras === code && x.id !== p.id);
+    if (ja) { fi.innerHTML = `⚠️ Esse código já está cadastrado: <b>${esc(ja.descricao)}</b>`; return; }
+    if (fd.value.trim() && !manual) return;
+    fi.textContent = '🔎 Buscando descrição...';
+    const desc = await buscaDescricaoEAN(code);
+    if (!desc) { fi.textContent = 'Não encontrado nas bases públicas. Digite a descrição.'; return; }
+    if (fd.value.trim() && fd.value.trim() !== desc && !await confirma('Substituir descrição?', `Encontrado: <b>${esc(desc)}</b>`, 'Substituir', '')) { fi.textContent = ''; return; }
+    fd.value = desc; fi.textContent = '✅ Descrição encontrada em base pública. Confira antes de salvar.';
+  };
+  d.querySelector('#fcBusca').onclick = () => buscar(true);
+  fc.addEventListener('change', () => buscar(false));
+  d.querySelector('#fcScan').onclick = async () => { const c = await scan(); if (c) { fc.value = c; buscar(false); } };
+  if (novo && p.codigo_barras && !p.descricao) buscar(false);
   if (!('BarcodeDetector' in window)) d.querySelector('#fcScan').hidden = true;
+}
+
+// ---------- busca de descrição por EAN em bases públicas ----------
+async function buscaDescricaoEAN(ean) {
+  ean = String(ean || '').replace(/\D/g, '');
+  if (ean.length < 8) return null;
+  const bases = ['world.openfoodfacts.org', 'world.openbeautyfacts.org', 'world.openproductsfacts.org'];
+  const get = async h => {
+    const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 7000);
+    try {
+      const r = await fetch(`https://${h}/api/v2/product/${ean}.json?fields=product_name,product_name_pt,brands,quantity`, { signal: ctl.signal });
+      return r.ok ? await r.json() : null;
+    } catch (e) { return null; } finally { clearTimeout(t); }
+  };
+  for (const r of await Promise.all(bases.map(get))) {
+    const p = r && r.status === 1 && r.product; if (!p) continue;
+    let d = String(p.product_name_pt || p.product_name || '').trim(); if (!d) continue;
+    const marca = String(p.brands || '').split(',')[0].trim();
+    if (marca && !norm(d).includes(norm(marca))) d += ' ' + marca;
+    const q = String(p.quantity || '').trim();
+    if (q && !norm(d).includes(norm(q))) d += ' ' + q;
+    return d.replace(/\s+/g, ' ').slice(0, 200);
+  }
+  return null;
 }
 
 // ---------- leitor de código de barras ----------
@@ -802,7 +843,7 @@ const PRESETS = [
 ];
 const F = '"Arial Black","Arial Bold","Helvetica Neue",Arial,sans-serif';
 const C = { red: '#e30613', green: '#1a8a3a', dgreen: '#0f5e27', yellow: '#ffd000', orange: '#f7a600', black: '#111' };
-const etqDefault = () => ({ w: 5, h: 4, gap: 0, cut: false, fill: false, showDesc: false, brandTop: 'Rede de Farmácias', brandName: 'Trevo', logo: null, items: [] });
+const etqDefault = () => ({ w: 5, h: 4, gap: 0, cut: false, fill: false, showDesc: false, eanMode: 'barras', brandTop: 'Rede de Farmácias', brandName: 'Trevo', logo: null, items: [] });
 let E = etqDefault();
 const etqKey = () => 'etq_' + (S.filial ? S.filial.id : 'x');
 function etqLoad() { E = Object.assign(etqDefault(), ls.get(etqKey(), {})); }
@@ -864,8 +905,28 @@ function tagSVG(item, wmm, hmm, uid) {
   else s += brandSVG(lx, ly, LH, E.brandTop, E.brandName);
   const sy2 = H * 0.865;
   s += `<path d="M${W * 0.48},${sy2 + m * 0.01} Q${W * 0.70},${sy2 - m * 0.03} ${W * 0.87},${sy2 - m * 0.10} Q${W * 0.70},${sy2 - m * 0.06} ${W * 0.48},${sy2 + m * 0.01} Z" fill="${C.red}" stroke="${C.red}" stroke-width="${m * 0.025}" stroke-linejoin="round"/>`;
-  let z1 = ly + LH + m * 0.03; const z2 = H * 0.835;
+  let z1 = ly + LH + m * 0.03; let z2 = H * 0.835;
   const x0 = b + m * 0.05, x1 = W - b - m * 0.05, availW = x1 - x0;
+  const eanTxt = String(item.ean || '').replace(/\D/g, '');
+  let eanSVG = '', eanTop = null;
+  if (E.eanMode && E.eanMode !== 'off' && eanTxt) {
+    const zt = z2 - z1, bits = E.eanMode === 'barras' ? eanBits(eanTxt) : null;
+    const stripH = bits ? zt * 0.32 : zt * 0.13;
+    const top = H * 0.86 - stripH, digS = bits ? stripH * 0.26 : stripH * 0.9;
+    if (bits) {
+      const mod = Math.min(availW / (bits.length + 18), W * 0.0072), bw = mod * bits.length, bx = W / 2 - bw / 2, barH = stripH - digS * 1.2;
+      eanSVG += `<rect x="${bx - mod * 11}" y="${top - mod * 2}" width="${bw + mod * 18}" height="${stripH + mod * 3}" rx="${mod * 2}" fill="#fff"/>`;
+      let i = 0;
+      while (i < bits.length) { if (bits[i] === '1') { let j = i; while (bits[j] === '1') j++; eanSVG += `<rect x="${(bx + i * mod).toFixed(2)}" y="${top.toFixed(2)}" width="${((j - i) * mod).toFixed(2)}" height="${barH.toFixed(2)}" fill="#000"/>`; i = j; } else i++; }
+      eanSVG += `<text x="${W / 2}" y="${top + stripH - digS * 0.05}" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="${digS}" letter-spacing="${digS * 0.1}" fill="#000">${eanTxt}</text>`;
+    } else {
+      const ds = Math.min(digS, availW * 0.8 / (tw(eanTxt, 700, false) * 1.1)), tW = tw(eanTxt, 700, false) * ds * 1.1;
+      eanSVG += `<rect x="${W / 2 - tW / 2 - ds * 0.4}" y="${top - ds * 0.1}" width="${tW + ds * 0.8}" height="${ds * 1.15}" rx="${ds * 0.2}" fill="#fff"/>`;
+      eanSVG += `<text x="${W / 2}" y="${top + ds * 0.85}" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="${ds}" letter-spacing="${ds * 0.08}" fill="#222">${eanTxt}</text>`;
+    }
+    eanTop = top - zt * 0.02;
+    z2 = Math.min(z2, eanTop);
+  }
   const showName = (item.promo || E.showDesc) && item.name;
   const showOld = item.promo && item.old;
   if (showName || showOld) {
@@ -888,12 +949,44 @@ function tagSVG(item, wmm, hmm, uid) {
   const kRs = tw('R$', 900, false) * 0.46, kP = tw(price, 900, false), kG = 0.05;
   const ps = Math.min(zh * 0.97 / 0.73, availW / (kRs + kG + kP));
   const totalW = (kRs + kG + kP) * ps, gx = x0 + (availW - totalW) / 2;
-  const base = z2 - zh * 0.02 - (zh - ps * 0.73) / 2, rsS = ps * 0.46, rsBase = base - (ps * 0.73 - rsS * 0.73) / 2;
-  s += `<text x="${gx}" y="${rsBase}" font-family='${F}' font-weight="900" font-size="${rsS}" fill="${C.green}" stroke="#fff" stroke-width="${rsS * 0.16}" paint-order="stroke" stroke-linejoin="round">R$</text>`;
-  const px = gx + (kRs + kG) * ps;
-  s += `<text x="${px}" y="${base}" font-family='${F}' font-weight="900" font-size="${ps}" fill="${C.black}" stroke="#555" stroke-width="${ps * 0.13}" paint-order="stroke" stroke-linejoin="round">${price}</text>`;
-  s += `<text x="${px}" y="${base}" font-family='${F}' font-weight="900" font-size="${ps}" fill="${C.black}" stroke="#fff" stroke-width="${ps * 0.09}" paint-order="stroke" stroke-linejoin="round">${price}</text>`;
+  let ps2 = ps;
+  if (eanTop != null) ps2 = Math.min(ps, zh * 0.97 / (0.73 + 0.2));  // espaço para a vírgula
+  const base0 = eanTop != null ? z1 + ps2 * 0.73 + (zh - ps2 * 0.93) / 2 : z2 - zh * 0.02 - (zh - ps * 0.73) / 2;
+  const base = base0, rsS = ps2 * 0.46, rsBase = base - (ps2 * 0.73 - rsS * 0.73) / 2;
+  s += `<text x="${x0 + (availW - (kRs + kG + kP) * ps2) / 2}" y="${rsBase}" font-family='${F}' font-weight="900" font-size="${rsS}" fill="${C.green}" stroke="#fff" stroke-width="${rsS * 0.16}" paint-order="stroke" stroke-linejoin="round">R$</text>`;
+  const gx2 = x0 + (availW - (kRs + kG + kP) * ps2) / 2; const px = gx2 + (kRs + kG) * ps2;
+  s += `<text x="${px}" y="${base}" font-family='${F}' font-weight="900" font-size="${ps2}" fill="${C.black}" stroke="#555" stroke-width="${ps2 * 0.13}" paint-order="stroke" stroke-linejoin="round">${price}</text>`;
+  s += `<text x="${px}" y="${base}" font-family='${F}' font-weight="900" font-size="${ps2}" fill="${C.black}" stroke="#fff" stroke-width="${ps2 * 0.09}" paint-order="stroke" stroke-linejoin="round">${price}</text>`;
+  s += eanSVG;
   return s + `</svg>`;
+}
+
+// gera os módulos (1 = barra) de EAN-13 ou EAN-8; null se o código não for válido
+function eanBits(code) {
+  const L = ['0001101','0011001','0010011','0111101','0100011','0110001','0101111','0111011','0110111','0001011'];
+  const G = ['0100111','0110011','0011011','0100001','0011101','0111001','0000101','0010001','0001001','0010111'];
+  const R = L.map(x => x.replace(/./g, c => c === '0' ? '1' : '0'));
+  const PAR = ['LLLLLL','LLGLGG','LLGGLG','LLGGGL','LGLLGG','LGGLLG','LGGGLL','LGLGLG','LGLGGL','LGGLGL'];
+  const chk = d => { let sum = 0; for (let i = 0; i < d.length; i++) sum += (+d[d.length - 1 - i]) * (i % 2 === 0 ? 3 : 1); return (10 - sum % 10) % 10; };
+  if (/^\d{12}$/.test(code)) code += chk(code);
+  if (/^\d{13}$/.test(code)) {
+    if (chk(code.slice(0, 12)) !== +code[12]) return null;
+    const par = PAR[+code[0]];
+    let b = '101';
+    for (let i = 1; i <= 6; i++) b += (par[i - 1] === 'L' ? L : G)[+code[i]];
+    b += '01010';
+    for (let i = 7; i <= 12; i++) b += R[+code[i]];
+    return b + '101';
+  }
+  if (/^\d{8}$/.test(code)) {
+    if (chk(code.slice(0, 7)) !== +code[7]) return null;
+    let b = '101';
+    for (let i = 0; i < 4; i++) b += L[+code[i]];
+    b += '01010';
+    for (let i = 4; i < 8; i++) b += R[+code[i]];
+    return b + '101';
+  }
+  return null;
 }
 
 function etqLayout() {
@@ -904,7 +997,7 @@ function etqLayout() {
 }
 function etqAddProduto(p, save = true) {
   const promo = !!(p.promo_ativa && p.preco_promo != null);
-  E.items.push({ price: brl(promo ? p.preco_promo : p.preco), qty: 1, promo, name: p.descricao, old: promo ? brl(p.preco) : '', pid: p.id });
+  E.items.push({ price: brl(promo ? p.preco_promo : p.preco), qty: 1, promo, name: p.descricao, old: promo ? brl(p.preco) : '', pid: p.id, ean: p.codigo_barras || '' });
   if (save) etqSave();
 }
 let uid = 0;
@@ -953,7 +1046,7 @@ function etqPresets() {
   });
 }
 function etqSync() {
-  $('#ew').value = E.w; $('#eh').value = E.h; $('#egap').value = E.gap; $('#eCut').checked = E.cut; $('#eFill').checked = E.fill; $('#eShowDesc').checked = E.showDesc;
+  $('#ew').value = E.w; $('#eh').value = E.h; $('#egap').value = E.gap; $('#eCut').checked = E.cut; $('#eFill').checked = E.fill; $('#eShowDesc').checked = E.showDesc; $('#eEan').value = E.eanMode || 'off';
   $('#eBrandTop').value = E.brandTop; $('#eBrandName').value = E.brandName;
   $('#eLogoPrev').hidden = !E.logo; $('#eLogoClear').hidden = !E.logo; if (E.logo) $('#eLogoPrev').src = E.logo;
 }
@@ -966,6 +1059,7 @@ function etqItems() {
         <div class="f" style="max-width:76px"><label>Qtd.</label><input type="number" min="0" inputmode="numeric" data-k="qty" value="${esc(it.qty)}"></div>
         <button class="icon" data-del title="Remover">✕</button></div>
       <div><button class="pill${it.promo ? ' on' : ''}">🏷️ Promoção</button></div>
+      ${E.eanMode && E.eanMode !== 'off' ? `<div class="f"><label>EAN</label><input type="text" inputmode="numeric" data-k="ean" maxlength="14" value="${esc(it.ean || '')}"></div>` : ''}
       <div class="promo">
         <div class="f" style="flex:2"><label>Nome do produto</label><input type="text" data-k="name" value="${esc(it.name)}"></div>
         <div class="f"><label>De R$</label><input type="text" inputmode="decimal" data-k="old" value="${esc(it.old)}" placeholder="59,99"></div>
@@ -981,10 +1075,10 @@ async function etqOpen() {
   // atualiza preços de itens vindos do cadastro
   try { await loadProdutos(); } catch (e) {}
   E.items.forEach(it => { if (!it.pid) return; const p = S.produtos.find(x => x.id === it.pid); if (!p) return;
-    const promo = !!(p.promo_ativa && p.preco_promo != null); it.name = p.descricao; it.price = brl(promo ? p.preco_promo : p.preco); it.promo = promo; it.old = promo ? brl(p.preco) : ''; });
+    const promo = !!(p.promo_ativa && p.preco_promo != null); it.name = p.descricao; it.price = brl(promo ? p.preco_promo : p.preco); it.promo = promo; it.old = promo ? brl(p.preco) : ''; it.ean = p.codigo_barras || ''; });
   etqSync(); etqPresets(); etqItems(); etqRender();
 }
-$('#eAdd').onclick = () => { E.items.push({ price: '', qty: 1, promo: false, name: '', old: '' }); etqItems(); etqRender(); const ins = document.querySelectorAll('#eItems input[data-k=price]'); ins[ins.length - 1].focus(); };
+$('#eAdd').onclick = () => { E.items.push({ price: '', qty: 1, promo: false, name: '', old: '', ean: '' }); etqItems(); etqRender(); const ins = document.querySelectorAll('#eItems input[data-k=price]'); ins[ins.length - 1].focus(); };
 $('#eClear').onclick = async () => { if (E.items.length && await confirma('Limpar etiquetas', 'Remover todas as etiquetas da lista?', 'Limpar')) { E.items = []; etqItems(); etqRender(); } };
 $('#eFromCad').onclick = async () => {
   await loadProdutos();
@@ -1000,6 +1094,7 @@ $('#eFromCad').onclick = async () => {
 $('#eCut').onchange = e => { E.cut = e.target.checked; etqRender(); };
 $('#eFill').onchange = e => { E.fill = e.target.checked; etqRender(); };
 $('#eShowDesc').onchange = e => { E.showDesc = e.target.checked; etqRender(); };
+$('#eEan').onchange = e => { E.eanMode = e.target.value; etqItems(); etqRender(); };
 $('#eBrandTop').oninput = e => { E.brandTop = e.target.value; etqRender(); };
 $('#eBrandName').oninput = e => { E.brandName = e.target.value; etqRender(); };
 $('#eLogo').onchange = e => { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => { E.logo = r.result; etqSync(); etqRender(); }; r.readAsDataURL(f); };
