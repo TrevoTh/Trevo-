@@ -105,6 +105,9 @@ table.prev td,table.prev th{border-bottom:1px solid var(--line);padding:4px;text
 #toast.show{opacity:1}
 #toast.err{background:var(--red)}
 #printArea{display:none}
+.qtd{display:flex;align-items:center;gap:4px}
+.qtd button{border:none;background:#f3f4f6;border-radius:10px;width:38px;height:42px;font-size:20px;font-weight:800;cursor:pointer;color:var(--ink);flex:none}
+.qtd input{text-align:center;padding:10px 4px!important;min-width:0}
 .kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .kpi{background:#f9fafb;border:1.5px solid var(--line);border-radius:12px;padding:10px}
 .kpi small{display:block;font-size:11px;color:var(--mut);font-weight:700;text-transform:uppercase;letter-spacing:.03em}
@@ -218,12 +221,14 @@ table.tv td:first-child,table.tv th:first-child{text-align:left}
               <div class="f"><label>Espaço entre (mm)</label><input type="number" id="egap" step="0.5" min="0" inputmode="decimal"></div>
             </div>
             <div class="info" id="fitInfo"></div>
+            <button class="btn sm ghost" id="eCompletar" hidden style="margin-top:6px">➕ Completar a folha</button>
             <label class="chk"><input type="checkbox" id="eCut"> Mostrar linhas de corte na prévia</label>
           </div>
           <div class="card">
             <h2>Etiquetas</h2>
             <div class="row" style="margin-bottom:10px">
               <button class="btn sm" id="eFromCad" style="flex:1">📦 Adicionar do cadastro</button>
+              <button class="btn sm ghost" id="eIgualar" title="Mesma quantidade para todos">🔢 Igualar qtd.</button>
               <button class="btn sm ghost" id="eClear">Limpar</button>
             </div>
             <div id="eItems"></div>
@@ -249,15 +254,27 @@ table.tv td:first-child,table.tv th:first-child{text-align:left}
             <h2>Impressora e papel</h2>
             <div class="field"><label>Tipo de papel</label>
               <select id="iPapel">
-                <option value="a4">Folha A4 (jato de tinta / laser)</option>
-                <option value="carta">Folha Carta</option>
+                <option value="a4">Folha A4 (210 × 297 mm)</option>
+                <option value="a3">Folha A3 (297 × 420 mm)</option>
+                <option value="a5">Folha A5 (148 × 210 mm)</option>
+                <option value="a6">Folha A6 (105 × 148 mm)</option>
+                <option value="carta">Folha Carta (216 × 279 mm)</option>
+                <option value="oficio">Folha Ofício (216 × 330 mm)</option>
+                <option value="legal">Folha Legal (216 × 356 mm)</option>
+                <option value="custom">Folha personalizada…</option>
                 <option value="adesiva">Folha de etiquetas adesivas</option>
                 <option value="rolo">Rolo / impressora térmica (1 por página)</option>
               </select></div>
+            <div class="row" id="iBoxOrient" style="margin-bottom:8px"><div class="f"><label>Orientação da folha</label>
+              <div class="chips" id="iOrient"><button type="button" class="chip" data-o="retrato">📄 Em pé</button><button type="button" class="chip" data-o="paisagem">📃 Deitada</button></div></div></div>
+            <div class="row" id="iBoxCustom" hidden style="margin-bottom:8px">
+              <div class="f"><label>Largura da folha (mm)</label><input type="number" id="iCW" step="1" min="20" inputmode="decimal"></div>
+              <div class="f"><label>Altura da folha (mm)</label><input type="number" id="iCH" step="1" min="20" inputmode="decimal"></div>
+            </div>
             <div class="row" id="iBoxFolha"><div class="f"><label>Margem do papel (mm)</label><input type="number" id="iMargem" step="0.5" min="0" inputmode="decimal"></div></div>
             <div id="iBoxAds" hidden>
               <div class="row">
-                <div class="f"><label>Folha</label><select id="iAdsPapel"><option value="a4">A4</option><option value="carta">Carta</option></select></div>
+                <div class="f"><label>Folha</label><select id="iAdsPapel"><option value="a4">A4</option><option value="a3">A3</option><option value="a5">A5</option><option value="carta">Carta</option><option value="oficio">Ofício</option><option value="legal">Legal</option></select></div>
                 <div class="f"><label>Colunas</label><input type="number" id="iCols" min="1" inputmode="numeric"></div>
                 <div class="f"><label>Linhas</label><input type="number" id="iRows" min="1" inputmode="numeric"></div>
               </div>
@@ -628,8 +645,12 @@ $('#pList').onclick = e => {
 $('#pSelNone').onclick = () => { S.sel.clear(); prodRender(); };
 $('#pSelEtq').onclick = () => {
   const ps = S.produtos.filter(p => S.sel.has(p.id));
-  ps.forEach(p => etqAddProduto(p, false)); etqSave();
-  S.sel.clear(); toast(`${ps.length} etiqueta(s) adicionada(s)`); openTab('etiquetas');
+  dlg('Gerar etiquetas', `<div class="field"><label>Quantas etiquetas de cada produto? (${ps.length} produto${ps.length > 1 ? 's' : ''})</label><input type="number" id="gq" min="1" inputmode="numeric" value="1"></div>`,
+    [{ t: 'Cancelar' }, { t: 'Gerar', cls: 'red', fn: d => {
+      const n = Math.max(1, parseInt(d.querySelector('#gq').value) || 1);
+      ps.forEach(p => etqAddProduto(p, false, n)); etqSave();
+      S.sel.clear(); toast(`${ps.length * n} etiqueta(s) adicionada(s)`); setTimeout(() => openTab('etiquetas'), 50);
+    } }]);
 };
 $('#pScan').onclick = async () => { const c = await scan(); if (c) { $('#pBusca').value = c; prodRender(); const f = S.produtos.find(p => p.codigo_barras === c); if (!f && perm('produtos_editar') && await confirma('Produto não encontrado', `Nenhum produto com o código <b>${esc(c)}</b>. Cadastrar agora?`, 'Cadastrar', '')) prodForm({ codigo_barras: c }); } };
 $('#pNovo').onclick = () => prodForm({});
@@ -1674,18 +1695,36 @@ function eanBits(code) {
 }
 
 // ---------- configuração da impressora (por aparelho) ----------
-const IMP_DEF = { papel: 'a4', margem: 5, adsPapel: 'a4', cols: 4, rows: 7, mTop: 8.5, mLeft: 5, gapH: 0, gapV: 0, offX: 0, offY: 0, esc: 100 };
+const IMP_DEF = { papel: 'a4', orient: 'retrato', cw: 100, ch: 150, margem: 5, adsPapel: 'a4', cols: 4, rows: 7, mTop: 8.5, mLeft: 5, gapH: 0, gapV: 0, offX: 0, offY: 0, esc: 100 };
 let I = Object.assign({}, IMP_DEF, ls.get('impressora', {}));
-const PAPEIS = { a4: [210, 297], carta: [215.9, 279.4] };
+const PAPEIS = { a4: [210, 297], a3: [297, 420], a5: [148, 210], a6: [105, 148], carta: [215.9, 279.4], oficio: [216, 330], legal: [215.9, 355.6] };
+const NOME_PAPEL = { a4: 'A4', a3: 'A3', a5: 'A5', a6: 'A6', carta: 'Carta', oficio: 'Ofício', legal: 'Legal', custom: 'Personalizada' };
+const CSS_PAPEL = { a4: 'A4', a3: 'A3', a5: 'A5', carta: 'letter', legal: 'legal' };   // nomes que o navegador entende
+const ehFolha = () => !!PAPEIS[I.papel] || I.papel === 'custom';
+// tamanho da folha já na orientação escolhida
+function folhaMM(chave) {
+  let [a, b] = chave === 'custom' ? [Math.max(20, +I.cw || 100), Math.max(20, +I.ch || 150)] : (PAPEIS[chave] || PAPEIS.a4);
+  const peq = Math.min(a, b), gra = Math.max(a, b);
+  return I.orient === 'paisagem' ? [gra, peq] : [peq, gra];
+}
+function regraPagina(L) {
+  const nome = L.chave && CSS_PAPEL[L.chave];
+  const size = nome ? `${nome} ${I.orient === 'paisagem' ? 'landscape' : 'portrait'}` : `${L.PW}mm ${L.PH}mm`;
+  return `@media print{@page{size:${size};margin:0}}`;
+}
 function impSync() {
   $('#iPapel').value = I.papel; $('#iMargem').value = I.margem; $('#iAdsPapel').value = I.adsPapel;
   $('#iCols').value = I.cols; $('#iRows').value = I.rows; $('#iMTop').value = I.mTop; $('#iMLeft').value = I.mLeft;
   $('#iGapH').value = I.gapH; $('#iGapV').value = I.gapV; $('#iOffX').value = I.offX; $('#iOffY').value = I.offY; $('#iEsc').value = I.esc;
-  $('#iBoxFolha').hidden = !(I.papel === 'a4' || I.papel === 'carta');
+  $('#iBoxFolha').hidden = !ehFolha();
+  $('#iBoxCustom').hidden = I.papel !== 'custom'; $('#iCW').value = I.cw; $('#iCH').value = I.ch;
+  $('#iBoxOrient').hidden = I.papel === 'rolo';
+  document.querySelectorAll('#iOrient .chip').forEach(c => c.classList.toggle('on', c.dataset.o === I.orient));
   $('#iBoxAds').hidden = I.papel !== 'adesiva';
   $('#iRoloInfo').hidden = I.papel !== 'rolo';
 }
-[['iPapel', 'papel', 's'], ['iMargem', 'margem'], ['iAdsPapel', 'adsPapel', 's'], ['iCols', 'cols', 'i'], ['iRows', 'rows', 'i'], ['iMTop', 'mTop'], ['iMLeft', 'mLeft'],
+$('#iOrient').onclick = e => { const o = e.target.closest('.chip')?.dataset.o; if (!o) return; I.orient = o; ls.set('impressora', I); impSync(); etqRender(); };
+[['iPapel', 'papel', 's'], ['iCW', 'cw'], ['iCH', 'ch'], ['iMargem', 'margem'], ['iAdsPapel', 'adsPapel', 's'], ['iCols', 'cols', 'i'], ['iRows', 'rows', 'i'], ['iMTop', 'mTop'], ['iMLeft', 'mLeft'],
  ['iGapH', 'gapH'], ['iGapV', 'gapV'], ['iOffX', 'offX'], ['iOffY', 'offY'], ['iEsc', 'esc']].forEach(([id, k, t]) => {
   $('#' + id).addEventListener(t === 's' ? 'change' : 'input', e => {
     let v = e.target.value;
@@ -1698,38 +1737,40 @@ function impSync() {
 function etqLayout() {
   const w = E.w * 10, h = E.h * 10;
   if (I.papel === 'rolo') return { PW: w, PH: h, slots: [{ x: 0, y: 0 }], n: 1, desc: 'Rolo: 1 etiqueta por página' };
+  const orientTxt = I.orient === 'paisagem' ? 'deitada' : 'em pé';
   if (I.papel === 'adesiva') {
-    const [PW, PH] = PAPEIS[I.adsPapel] || PAPEIS.a4, slots = [];
+    const [PW, PH] = folhaMM(I.adsPapel), slots = [];
     for (let r = 0; r < I.rows; r++) for (let c = 0; c < I.cols; c++) slots.push({ x: I.mLeft + c * (w + I.gapH), y: I.mTop + r * (h + I.gapV) });
     const sobra = I.mLeft + I.cols * w + (I.cols - 1) * I.gapH > PW + 0.5 || I.mTop + I.rows * h + (I.rows - 1) * I.gapV > PH + 0.5;
-    return { PW, PH, slots, n: slots.length, desc: `Folha adesiva ${I.adsPapel.toUpperCase()}: ${I.cols} × ${I.rows}`, aviso: sobra ? '⚠️ As medidas passam do tamanho da folha. Confira colunas, linhas e margens.' : '' };
+    return { PW, PH, chave: I.adsPapel, slots, n: slots.length, desc: `Folha adesiva ${NOME_PAPEL[I.adsPapel] || ''} ${orientTxt}: ${I.cols} × ${I.rows}`, aviso: sobra ? '⚠️ As medidas passam do tamanho da folha. Confira colunas, linhas, margens e orientação.' : '' };
   }
-  const g = +E.gap || 0, M = Math.max(0, +I.margem || 0), [A, B] = PAPEIS[I.papel] || PAPEIS.a4;
-  const calc = (PW, PH, land) => {
-    const c = Math.max(0, Math.floor((PW - 2 * M + g) / (w + g))), r = Math.max(0, Math.floor((PH - 2 * M + g) / (h + g)));
-    const ox = (PW - (c * w + (c - 1) * g)) / 2, oy = (PH - (r * h + (r - 1) * g)) / 2, slots = [];
-    for (let i = 0; i < r; i++) for (let j = 0; j < c; j++) slots.push({ x: ox + j * (w + g), y: oy + i * (h + g) });
-    return { PW, PH, slots, n: c * r, desc: `Folha ${I.papel === 'carta' ? 'Carta' : 'A4'}: ${c} × ${r}${land ? ', deitada' : ''}` };
-  };
-  const p = calc(A, B, false), l = calc(B, A, true);
-  return l.n > p.n ? l : p;
+  const g = +E.gap || 0, M = Math.max(0, +I.margem || 0), [PW, PH] = folhaMM(I.papel);
+  const c = Math.max(0, Math.floor((PW - 2 * M + g) / (w + g))), r = Math.max(0, Math.floor((PH - 2 * M + g) / (h + g)));
+  const slots = [];
+  // começa no canto superior esquerdo: numa folha incompleta, a sobra fica inteira embaixo
+  for (let i = 0; i < r; i++) for (let j = 0; j < c; j++) slots.push({ x: M + j * (w + g), y: M + i * (h + g) });
+  return { PW, PH, chave: I.papel === 'custom' ? null : I.papel, slots, n: c * r, desc: `Folha ${NOME_PAPEL[I.papel]} ${orientTxt}: ${c} × ${r}` };
 }
-function etqAddProduto(p, save = true) {
+function etqAddProduto(p, save = true, qty = 1) {
   const promo = !!(p.promo_ativa && p.preco_promo != null);
-  E.items.push({ price: brl(promo ? p.preco_promo : p.preco), qty: 1, promo, name: p.descricao, old: promo ? brl(p.preco) : '', pid: p.id, ean: p.codigo_barras || '' });
+  E.items.push({ price: brl(promo ? p.preco_promo : p.preco), qty: Math.max(1, parseInt(qty) || 1), promo, name: p.descricao, old: promo ? brl(p.preco) : '', pid: p.id, ean: p.codigo_barras || '' });
   if (save) etqSave();
 }
 let uid = 0;
 function etqRender() {
   etqSave();
   const L = etqLayout();
-  $('#pageStyle').textContent = `@media print{@page{size:${L.PW}mm ${L.PH}mm;margin:0}}`;
+  $('#pageStyle').textContent = regraPagina(L);
   let tags = [];
   E.items.forEach(it => { const q = Math.max(0, parseInt(it.qty) || 0); for (let i = 0; i < q; i++) tags.push(it); });
   if (E.fill && tags.length && L.n > 1) { const base = tags.slice(); let i = 0; while (tags.length % L.n) tags.push(base[i++ % base.length]); }
   const nPag = L.n ? Math.ceil(tags.length / L.n) : 0;
+  const faltam = L.n > 1 && tags.length % L.n ? L.n - tags.length % L.n : 0;
   $('#fitInfo').textContent = !L.n ? '⚠️ Esse tamanho não cabe no papel escolhido.' :
-    `${L.desc} → ${L.n} por página. Total: ${tags.length} etiqueta(s) em ${nPag} página(s).` + (L.aviso ? ' ' + L.aviso : '');
+    `${L.desc} → ${L.n} por página. Total: ${tags.length} etiqueta(s) em ${nPag} página(s).` + (faltam ? ` Faltam ${faltam} para completar a última folha.` : '') + (L.aviso ? ' ' + L.aviso : '');
+  $('#eCompletar').hidden = !faltam || !E.items.length;
+  $('#eCompletar').textContent = `➕ Completar a folha (+${faltam})`;
+  $('#eCompletar').dataset.n = faltam;
   const first = E.items[0] || { price: '0,00' };
   $('#eOne').innerHTML = tagSVG(first, E.w * 10, E.h * 10, 'p' + (uid++)).replace(/width="[\d.]+mm" height="[\d.]+mm"/, `style="width:${Math.min(100, E.w * 14)}%;max-width:420px"`);
   const pages = $('#pages'); pages.innerHTML = '';
@@ -1779,7 +1820,7 @@ function etqItems() {
     const d = document.createElement('div'); d.className = 'item' + (it.promo ? ' promoOn' : '');
     d.innerHTML = `<div class="top">
         <div class="f" style="flex:2"><label>${it.pid ? esc(it.name).slice(0, 40) : 'Preço (R$)'}</label><input type="text" inputmode="decimal" data-k="price" value="${esc(it.price)}" placeholder="46,99"></div>
-        <div class="f" style="max-width:76px"><label>Qtd.</label><input type="number" min="0" inputmode="numeric" data-k="qty" value="${esc(it.qty)}"></div>
+        <div style="flex:none"><label>Qtd.</label><div class="qtd"><button type="button" data-q="-1" aria-label="Menos">−</button><input type="number" min="0" inputmode="numeric" data-k="qty" value="${esc(it.qty)}" style="width:56px"><button type="button" data-q="1" aria-label="Mais">+</button></div></div>
         <button class="icon" data-del title="Remover">✕</button></div>
       <div><button class="pill${it.promo ? ' on' : ''}">🏷️ Promoção</button></div>
       ${E.eanMode && E.eanMode !== 'off' ? `<div class="f"><label>EAN</label><input type="text" inputmode="numeric" data-k="ean" maxlength="14" value="${esc(it.ean || '')}"></div>` : ''}
@@ -1789,6 +1830,7 @@ function etqItems() {
       </div>`;
     d.querySelectorAll('input').forEach(inp => inp.addEventListener('input', () => { it[inp.dataset.k] = inp.value; etqRender(); }));
     d.querySelector('[data-del]').onclick = () => { E.items.splice(i, 1); etqItems(); etqRender(); };
+    d.querySelectorAll('[data-q]').forEach(bt => bt.onclick = () => { it.qty = Math.max(0, (parseInt(it.qty) || 0) + +bt.dataset.q); d.querySelector('[data-k=qty]').value = it.qty; etqRender(); });
     d.querySelector('.pill').onclick = () => { it.promo = !it.promo; etqItems(); etqRender(); };
     el.appendChild(d);
   });
@@ -1802,11 +1844,23 @@ async function etqOpen() {
   etqSync(); impSync(); etqPresets(); etqItems(); etqRender();
 }
 $('#eAdd').onclick = () => { E.items.push({ price: '', qty: 1, promo: false, name: '', old: '', ean: '' }); etqItems(); etqRender(); const ins = document.querySelectorAll('#eItems input[data-k=price]'); ins[ins.length - 1].focus(); };
+$('#eIgualar').onclick = () => {
+  if (!E.items.length) return toast('Adicione etiquetas primeiro.', true);
+  dlg('Igualar quantidade', `<div class="field"><label>Quantas etiquetas de cada item?</label><input type="number" id="iq" min="0" inputmode="numeric" value="${esc(E.items[0].qty)}"></div>`,
+    [{ t: 'Cancelar' }, { t: 'Aplicar', cls: '', fn: d => { const n = Math.max(0, parseInt(d.querySelector('#iq').value) || 0); E.items.forEach(it => it.qty = n); etqItems(); etqRender(); } }]);
+};
+$('#eCompletar').onclick = () => {
+  const n = +$('#eCompletar').dataset.n || 0; if (!n || !E.items.length) return;
+  const it = E.items[E.items.length - 1]; it.qty = (parseInt(it.qty) || 0) + n; etqItems(); etqRender(); toast(`+${n} etiqueta(s) no último item`);
+};
 $('#eClear').onclick = async () => { if (E.items.length && await confirma('Limpar etiquetas', 'Remover todas as etiquetas da lista?', 'Limpar')) { E.items = []; etqItems(); etqRender(); } };
 $('#eFromCad').onclick = async () => {
   await loadProdutos();
-  const d = dlg('Adicionar do cadastro', `<div class="row"><div class="f" style="flex:3"><input type="search" id="kb" placeholder="Buscar produto"></div>${'BarcodeDetector' in window ? '<button type="button" class="icon" id="ks">📷</button>' : ''}</div><div class="list" id="kl" style="margin-top:10px"></div>`, [{ t: 'Pronto' }]);
-  const kl = d.querySelector('#kl'), kb = d.querySelector('#kb');
+  const d = dlg('Adicionar do cadastro', `<div class="row" style="margin-bottom:8px;align-items:center"><label style="margin:0;flex:1">Etiquetas de cada produto</label><div class="qtd"><button type="button" data-kq="-1">−</button><input type="number" id="kq" min="1" value="1" inputmode="numeric" style="width:60px"><button type="button" data-kq="1">+</button></div></div>
+    <div class="row"><div class="f" style="flex:3"><input type="search" id="kb" placeholder="Buscar produto"></div>${'BarcodeDetector' in window ? '<button type="button" class="icon" id="ks">📷</button>' : ''}</div><div class="list" id="kl" style="margin-top:10px"></div>`, [{ t: 'Pronto' }]);
+  const kl = d.querySelector('#kl'), kb = d.querySelector('#kb'), kq = d.querySelector('#kq');
+  const qtdK = () => Math.max(1, parseInt(kq.value) || 1);
+  d.querySelectorAll('[data-kq]').forEach(bt => bt.onclick = () => { kq.value = Math.max(1, qtdK() + +bt.dataset.kq); });
   const render = () => { const list = filtraProdutos(kb.value).slice(0, 40);
     const q = kb.value.trim(), ehCodigo = /^\d{8,14}$/.test(q);
     kl.innerHTML = list.length ? list.map(p => `<div class="li" data-id="${p.id}"><div class="grow"><div class="ttl">${esc(p.descricao)}</div><div class="sub">${esc(p.codigo_barras || '')}</div></div><div class="price">${precoHTML(p)}</div><button class="icon kadd">＋</button></div>`).join('')
@@ -1814,11 +1868,11 @@ $('#eFromCad').onclick = async () => {
     const kn = kl.querySelector('#kNovo'); if (kn) kn.onclick = () => cadastroRapido(ehCodigo ? q : '', ehCodigo ? '' : q); };
   // cadastra e já adiciona na lista de etiquetas
   const cadastroRapido = (codigo, desc) => prodForm({ codigo_barras: codigo, descricao: desc }, novo => {
-    etqAddProduto(novo); etqItems(); etqRender(); kb.value = ''; render(); toast('Cadastrado e adicionado: ' + novo.descricao);
+    etqAddProduto(novo, true, qtdK()); etqItems(); etqRender(); kb.value = ''; render(); toast(`Cadastrado e adicionado (${qtdK()}×): ` + novo.descricao);
   });
   kb.oninput = render; render();
-  kl.onclick = e => { const li = e.target.closest('.li'); if (!li) return; const p = S.produtos.find(x => x.id === li.dataset.id); etqAddProduto(p); etqItems(); etqRender(); toast('Adicionado: ' + p.descricao); };
-  const ks = d.querySelector('#ks'); if (ks) ks.onclick = async () => { const c = await scan(); if (!c) return; const p = S.produtos.find(x => x.codigo_barras === c); if (p) { etqAddProduto(p); etqItems(); etqRender(); toast('Adicionado: ' + p.descricao); } else { kb.value = c; render();
+  kl.onclick = e => { const li = e.target.closest('.li'); if (!li) return; const p = S.produtos.find(x => x.id === li.dataset.id); etqAddProduto(p, true, qtdK()); etqItems(); etqRender(); toast(`Adicionado (${qtdK()}×): ` + p.descricao); };
+  const ks = d.querySelector('#ks'); if (ks) ks.onclick = async () => { const c = await scan(); if (!c) return; const p = S.produtos.find(x => x.codigo_barras === c); if (p) { etqAddProduto(p, true, qtdK()); etqItems(); etqRender(); toast(`Adicionado (${qtdK()}×): ` + p.descricao); } else { kb.value = c; render();
       if (perm('produtos_editar')) { if (await confirma('Produto não cadastrado', `O código <b>${esc(c)}</b> ainda não está cadastrado. Cadastrar agora? A descrição é buscada automaticamente.`, 'Cadastrar', '')) cadastroRapido(c, ''); }
       else toast('Código não cadastrado. Peça ao gestor para cadastrar.', true); } };
 };
@@ -1833,10 +1887,25 @@ $('#eLogo').onchange = e => { const f = e.target.files[0]; if (!f) return; const
 $('#eLogoClear').onclick = () => { E.logo = null; etqSync(); etqRender(); };
 $('#ePrint').onclick = () => {
   if (!document.querySelector('#pages .page')) return toast('Nada para imprimir.', true);
+  if (ls.get('avisoImpressao', true)) {
+    const L = etqLayout(), rolo = I.papel === 'rolo';
+    const papel = rolo ? `${E.w * 10} × ${E.h * 10} mm (etiqueta da térmica)` : (I.papel === 'custom' ? `${L.PW} × ${L.PH} mm` : (I.papel === 'adesiva' ? NOME_PAPEL[I.adsPapel] : NOME_PAPEL[I.papel]));
+    let ok = false;
+    const d = dlg('Antes de imprimir', `<p style="margin-top:0">Na tela de impressão, confira:</p>
+      <p>• <b>Papel:</b> ${esc(papel)}<br>${rolo ? '' : `• <b>Orientação:</b> ${I.orient === 'paisagem' ? 'Paisagem (deitada)' : 'Retrato (em pé)'}<br>`}• <b>Escala:</b> 100% / "Tamanho real" (não use "Ajustar à página")<br>• <b>Margens:</b> Nenhuma</p>
+      <div class="info">Se o papel ou a orientação forem diferentes, as etiquetas saem menores que o tamanho real.</div>
+      <label class="chk"><input type="checkbox" id="naoMostrar"> Não mostrar este aviso de novo</label>`,
+      [{ t: 'Cancelar' }, { t: '🖨️ Imprimir', cls: 'red', fn: dd => { ok = true; if (dd.querySelector('#naoMostrar').checked) ls.set('avisoImpressao', false); } }]);
+    d.addEventListener('close', () => { if (ok) setTimeout(imprimirAgora, 150); });
+    return;
+  }
+  imprimirAgora();
+};
+function imprimirAgora() {
   const pa = $('#printArea'); pa.innerHTML = '';
   document.querySelectorAll('#pages .page').forEach(p => { const c = p.cloneNode(true); c.style.transform = 'none'; calibrar(c); pa.appendChild(c); });
   window.print();
-};
+}
 function calibrar(page) {
   const pin = page.querySelector('.pin'); if (!pin) return;
   const esc = (+I.esc || 100) / 100;
@@ -1855,7 +1924,7 @@ $('#iTeste').onclick = () => {
   const pg = document.createElement('div'); pg.className = 'page'; pg.style.width = PW + 'mm'; pg.style.height = PH + 'mm';
   pg.innerHTML = `<div class="pin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${PW} ${PH}" width="${PW}mm" height="${PH}mm" style="position:absolute;left:0;top:0">${t}</svg></div>`;
   calibrar(pg);
-  $('#pageStyle').textContent = `@media print{@page{size:${PW}mm ${PH}mm;margin:0}}`;
+  $('#pageStyle').textContent = regraPagina(L);
   const pa = $('#printArea'); pa.innerHTML = ''; pa.appendChild(pg);
   window.print();
   setTimeout(etqRender, 500);
